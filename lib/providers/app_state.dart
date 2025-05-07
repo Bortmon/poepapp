@@ -19,6 +19,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   bool get isTracking => _isTracking;
   double get currentEarnings => _currentEarnings;
   List<SessionData> get sessionsHistory => _sessionsHistory;
+  SessionData? get lastCompletedSession => _sessionsHistory.isNotEmpty ? _sessionsHistory.last : null;
+
 
   AppState()
   {
@@ -104,27 +106,30 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     notifyListeners();
   }
 
-  void stopTracking()
+  Future<SessionData?> stopTracking() async
   {
     _timer?.cancel();
     _isTracking = false;
+    SessionData? completedSession;
+
     if (_sessionStartTime != null)
     {
       final endTime = DateTime.now();
       final durationInSeconds = endTime.difference(_sessionStartTime!).inSeconds;
       final finalEarnings = (durationInSeconds / 3600.0) * _hourlyWage;
 
-      final session = SessionData(
+      completedSession = SessionData(
         startTime: _sessionStartTime!,
         endTime: endTime,
         earnedAmount: finalEarnings,
       );
-      _sessionsHistory.add(session);
-      _storageService.saveSessions(_sessionsHistory);
+      _sessionsHistory.add(completedSession);
+      await _storageService.saveSessions(_sessionsHistory);
       _currentEarnings = finalEarnings;
     }
     _sessionStartTime = null;
     notifyListeners();
+    return completedSession;
   }
 
   double get weeklyEarnings

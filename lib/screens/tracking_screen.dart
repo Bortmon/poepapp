@@ -4,16 +4,99 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../main.dart';
+import '../models/session_data.dart';
 
 class TrackingScreen extends StatelessWidget
 {
   const TrackingScreen({super.key});
+
+  String _formatDurationForPopup(Duration duration)
+  {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+
+    List<String> parts = [];
+    if (hours > 0) parts.add("${hours}u");
+    if (minutes > 0) parts.add("${twoDigits(minutes)}m");
+    if (seconds > 0 || parts.isEmpty) parts.add("${twoDigits(seconds)}s");
+
+    return parts.join(" ");
+  }
+
+  Future<void> _showSessionSummaryPopup(BuildContext context, SessionData sessionData) async
+  {
+    final theme = Theme.of(context);
+    final myColors = MyThemeColors.of(context)!;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext)
+      {
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+          title: Row(
+            children: [
+              Text('Sessie Voltooid! ', style: theme.textTheme.headlineSmall),
+              const Text('💩🎉', style: TextStyle(fontSize: 24)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text(
+                  'Goed bezig!',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 16),
+                RichText(
+                  text: TextSpan(
+                    style: theme.textTheme.bodyLarge,
+                    children: <TextSpan>[
+                      const TextSpan(text: 'Je hebt '),
+                      TextSpan(
+                        text: formatCurrency(sessionData.earnedAmount),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: myColors.moneyColor,
+                          fontSize: (theme.textTheme.bodyLarge?.fontSize ?? 16) * 1.1,
+                        ),
+                      ),
+                      const TextSpan(text: ' verdiend.'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Duur: ${_formatDurationForPopup(sessionData.duration)}',
+                  style: theme.textTheme.bodyLarge,
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Top!', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 16)),
+              onPressed: ()
+              {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context)
   {
     final theme = Theme.of(context);
     final myColors = MyThemeColors.of(context)!;
+    final appState = Provider.of<AppState>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -24,7 +107,7 @@ class TrackingScreen extends StatelessWidget
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Consumer<AppState>(
-            builder: (context, appState, child)
+            builder: (context, consumerAppState, child)
             {
               return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -43,7 +126,7 @@ class TrackingScreen extends StatelessWidget
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      formatCurrency(appState.currentEarnings),
+                      formatCurrency(consumerAppState.currentEarnings),
                       style: TextStyle(
                         fontSize: 56,
                         fontWeight: FontWeight.bold,
@@ -65,10 +148,17 @@ class TrackingScreen extends StatelessWidget
                         color: Colors.white,
                       )
                     ),
-                    onPressed: ()
+                    onPressed: () async
                     {
-                      appState.stopTracking();
-                      Navigator.of(context).pop();
+                      SessionData? completedSession = await appState.stopTracking();
+                      if (completedSession != null && context.mounted)
+                      {
+                        await _showSessionSummaryPopup(context, completedSession);
+                      }
+                      if (context.mounted)
+                      {
+                        Navigator.of(context).pop();
+                      }
                     },
                   ),
                 ],
