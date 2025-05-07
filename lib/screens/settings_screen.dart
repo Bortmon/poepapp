@@ -42,7 +42,6 @@ class _SettingsScreenState extends State<SettingsScreen>
       if (wage != null && wage > 0)
       {
         Provider.of<AppState>(context, listen: false).setHourlyWage(wage);
-        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Uurloon opgeslagen!'),
@@ -53,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
         );
       }
-      else
+      else if (_wageController.text.isNotEmpty) // Alleen fout tonen als er iets is ingevuld dat niet geldig is
       {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -65,8 +64,57 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
         );
       }
+      // Als het veld leeg is, doen we niets bij het opslaan, de gebruiker wil misschien alleen resetten.
     }
   }
+
+  Future<void> _confirmAndResetData() async
+  {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext)
+      {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          title: const Text('Reset Bevestigen'),
+          content: const Text('Weet je zeker dat je alle opgeslagen gegevens (uurloon en sessiegeschiedenis) wilt verwijderen? Dit kan niet ongedaan worden gemaakt.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Annuleren'),
+              onPressed: ()
+              {
+                Navigator.of(dialogContext).pop(false);
+              },
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+              child: const Text('Resetten'),
+              onPressed: ()
+              {
+                Navigator.of(dialogContext).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true && mounted)
+    {
+      await Provider.of<AppState>(context, listen: false).resetAllData();
+      _wageController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Alle gegevens zijn gereset!'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(10),
+        ),
+      );
+    }
+  }
+
 
   @override
   Widget build(BuildContext context)
@@ -76,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       appBar: AppBar(
         title: const Text('Instellingen'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
@@ -111,7 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 {
                   if (value == null || value.isEmpty)
                   {
-                    return 'Voer een uurloon in.';
+                    return null;
                   }
                   final n = double.tryParse(value.replaceAll(',', '.'));
                   if (n == null || n <= 0)
@@ -127,7 +175,37 @@ class _SettingsScreenState extends State<SettingsScreen>
                 style: theme.elevatedButtonTheme.style?.copyWith(
                   minimumSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
                 ),
-                child: const Text('Opslaan'),
+                child: const Text('Uurloon Opslaan'),
+              ),
+              const SizedBox(height: 40),
+              const Divider(),
+              const SizedBox(height: 20),
+              Text(
+                'Gevaarlijke Zone',
+                style: theme.textTheme.titleLarge?.copyWith(color: theme.colorScheme.error),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Hiermee wis je al je opgeslagen uurloon en sessiegeschiedenis.',
+                 style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7)
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                icon: Icon(Icons.delete_forever, color: theme.colorScheme.error),
+                label: Text(
+                  'Reset Alle Gegevens',
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  side: BorderSide(color: theme.colorScheme.error.withOpacity(0.5)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                ),
+                onPressed: _confirmAndResetData,
               ),
             ],
           ),

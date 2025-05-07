@@ -37,4 +37,11 @@ class StorageService
     }
     return sessionsJson.map((s) => SessionData.fromJson(jsonDecode(s))).toList();
   }
+
+  Future<void> clearAllData() async
+  {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_hourlyWageKey);
+    await prefs.remove(_sessionsKey);
+  }
 }

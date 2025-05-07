@@ -141,6 +141,21 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
         .fold(0.0, (sum, session) => sum + session.earnedAmount);
   }
 
+  Future<void> resetAllData() async
+  {
+    if (_isTracking)
+    {
+      _timer?.cancel();
+      _isTracking = false;
+      _sessionStartTime = null;
+    }
+    await _storageService.clearAllData();
+    _hourlyWage = 0.0;
+    _sessionsHistory = [];
+    _currentEarnings = 0.0;
+    notifyListeners();
+  }
+
   @override
   void dispose()
   {
