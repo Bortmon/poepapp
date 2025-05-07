@@ -61,10 +61,10 @@ class MyApp extends StatelessWidget
   Widget build(BuildContext context)
   {
     const Color primaryColor = Color(0xFF8A3FFC);
-    const Color backgroundColor = Color(0xFF121212);
     const Color cardBackgroundColor = Color(0xFF1E1E1E);
     const Color textColor = Color(0xFFE0E0E0);
     const Color moneyGreen = Color(0xFF00C853);
+    const Color scaffoldBgColor = Color(0xFF121212);
 
     return MaterialApp(
       title: 'WC Geld Tracker',
@@ -72,12 +72,12 @@ class MyApp extends StatelessWidget
       theme: ThemeData(
         brightness: Brightness.dark,
         primaryColor: primaryColor,
-        scaffoldBackgroundColor: backgroundColor,
-        colorScheme: ColorScheme.dark(
+        scaffoldBackgroundColor: scaffoldBgColor,
+        colorScheme: const ColorScheme.dark(
           primary: primaryColor,
           secondary: primaryColor,
           surface: cardBackgroundColor,
-          background: backgroundColor,
+          background: scaffoldBgColor,
           error: Colors.redAccent,
           onPrimary: Colors.white,
           onSecondary: Colors.white,
@@ -85,7 +85,7 @@ class MyApp extends StatelessWidget
           onBackground: textColor,
           onError: Colors.white,
         ),
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           backgroundColor: cardBackgroundColor,
           elevation: 0,
           titleTextStyle: TextStyle(
@@ -114,17 +114,17 @@ class MyApp extends StatelessWidget
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: cardBackgroundColor.withOpacity(0.5),
+          fillColor: cardBackgroundColor.withAlpha((0.5 * 255).round()),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
-            borderSide: BorderSide(color: primaryColor, width: 2),
+            borderSide: const BorderSide(color: primaryColor, width: 2),
           ),
-          labelStyle: TextStyle(color: textColor.withOpacity(0.7)),
-          hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+          labelStyle: TextStyle(color: textColor.withAlpha((0.7 * 255).round())),
+          hintStyle: TextStyle(color: textColor.withAlpha((0.5 * 255).round())),
         ),
         cardTheme: CardTheme(
           elevation: 2,
@@ -134,7 +134,7 @@ class MyApp extends StatelessWidget
           ),
           margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
         ),
-        textTheme: TextTheme(
+        textTheme: const TextTheme(
           displayLarge: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           displayMedium: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           displaySmall: TextStyle(color: textColor, fontWeight: FontWeight.bold),
@@ -144,15 +144,15 @@ class MyApp extends StatelessWidget
           titleLarge: TextStyle(color: textColor, fontWeight: FontWeight.w500),
           titleMedium: TextStyle(color: textColor, fontWeight: FontWeight.w500),
           titleSmall: TextStyle(color: textColor, fontWeight: FontWeight.w500),
-          bodyLarge: TextStyle(color: textColor.withOpacity(0.9)),
-          bodyMedium: TextStyle(color: textColor.withOpacity(0.8)),
+          bodyLarge: TextStyle(color: Color(0xE6E0E0E0)),
+          bodyMedium: TextStyle(color: Color(0xCCE0E0E0)),
           labelLarge: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
         ),
         iconTheme: IconThemeData(
-          color: textColor.withOpacity(0.8),
+          color: textColor.withAlpha((0.8 * 255).round()),
         ),
         dividerTheme: DividerThemeData(
-          color: textColor.withOpacity(0.2),
+          color: textColor.withAlpha((0.2 * 255).round()),
           thickness: 1,
         ),
         extensions: const <ThemeExtension<dynamic>>[

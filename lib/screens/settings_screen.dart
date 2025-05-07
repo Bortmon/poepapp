@@ -52,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
         );
       }
-      else if (_wageController.text.isNotEmpty) // Alleen fout tonen als er iets is ingevuld dat niet geldig is
+      else if (_wageController.text.isNotEmpty)
       {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -64,7 +64,6 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
         );
       }
-      // Als het veld leeg is, doen we niets bij het opslaan, de gebruiker wil misschien alleen resetten.
     }
   }
 
@@ -129,18 +128,20 @@ class _SettingsScreenState extends State<SettingsScreen>
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch, 
             children: <Widget>[
               Text(
                 'Jouw Uurloon',
                 style: theme.textTheme.headlineSmall,
+                textAlign: TextAlign.start, 
               ),
               const SizedBox(height: 8),
               Text(
                 'Voer hieronder in hoeveel je per uur verdient. Dit wordt gebruikt om je WC-inkomsten te berekenen.',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7)
+                  color: theme.textTheme.bodyMedium?.color?.withAlpha((0.7 * 255).round())
                 ),
+                textAlign: TextAlign.start,
               ),
               const SizedBox(height: 24),
               TextFormField(
@@ -173,7 +174,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               ElevatedButton(
                 onPressed: _saveSettings,
                 style: theme.elevatedButtonTheme.style?.copyWith(
-                  minimumSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
+                  minimumSize: WidgetStateProperty.all(const Size(double.infinity, 50)),
                 ),
                 child: const Text('Uurloon Opslaan'),
               ),
@@ -181,15 +182,17 @@ class _SettingsScreenState extends State<SettingsScreen>
               const Divider(),
               const SizedBox(height: 20),
               Text(
-                'Gevaarlijke Zone',
+                'Gegevens Resetten',
                 style: theme.textTheme.titleLarge?.copyWith(color: theme.colorScheme.error),
+                textAlign: TextAlign.start, 
               ),
               const SizedBox(height: 8),
               Text(
                 'Hiermee wis je al je opgeslagen uurloon en sessiegeschiedenis.',
                  style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7)
+                  color: theme.textTheme.bodyMedium?.color?.withAlpha((0.7 * 255).round())
                 ),
+                textAlign: TextAlign.start, 
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
@@ -200,13 +203,22 @@ class _SettingsScreenState extends State<SettingsScreen>
                 ),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  side: BorderSide(color: theme.colorScheme.error.withOpacity(0.5)),
+                  side: BorderSide(color: theme.colorScheme.error.withAlpha((0.5 * 255).round())),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.0),
                   ),
                 ),
                 onPressed: _confirmAndResetData,
               ),
+              const SizedBox(height: 50), 
+              Text(
+                'Made by Bart Akkerman',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.textTheme.bodySmall?.color?.withAlpha((0.6 * 255).round())
+                ),
+              ),
+              const SizedBox(height: 10), 
             ],
           ),
         ),

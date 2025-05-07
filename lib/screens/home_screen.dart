@@ -89,7 +89,7 @@ class HomeScreen extends StatelessWidget
                     borderRadius: BorderRadius.circular(20.0),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withAlpha((0.2 * 255).round()), // withAlpha
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       )
@@ -107,7 +107,7 @@ class HomeScreen extends StatelessWidget
                         'Klaar voor je volgende sessie?',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.headlineSmall?.copyWith(
-                          color: theme.textTheme.bodyLarge?.color?.withOpacity(0.9)
+                          color: theme.textTheme.bodyLarge?.color?.withAlpha((0.9 * 255).round()) // withAlpha
                         ),
                       ),
                     ],
@@ -118,10 +118,10 @@ class HomeScreen extends StatelessWidget
                   icon: const Icon(Icons.play_circle_fill_outlined, size: 28),
                   label: const Text('Start Sessie'),
                   style: theme.elevatedButtonTheme.style?.copyWith(
-                    padding: MaterialStateProperty.all(
+                    padding: WidgetStateProperty.all( // WidgetStateProperty
                       const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
                     ),
-                    textStyle: MaterialStateProperty.all(
+                    textStyle: WidgetStateProperty.all( // WidgetStateProperty
                       theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: theme.colorScheme.onPrimary,
@@ -139,7 +139,7 @@ class HomeScreen extends StatelessWidget
                   Padding(
                     padding: const EdgeInsets.only(top: 20.0),
                     child: Card(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      color: theme.colorScheme.primary.withAlpha((0.1 * 255).round()), // withAlpha
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Row(
@@ -244,7 +244,7 @@ class HomeScreen extends StatelessWidget
               dataRowMaxHeight: 56,
               headingTextStyle: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: theme.textTheme.bodyLarge?.color?.withOpacity(0.7),
+                color: theme.textTheme.bodyLarge?.color?.withAlpha((0.7 * 255).round()), // withAlpha
               ),
               dataTextStyle: theme.textTheme.bodyMedium,
               columns: const [

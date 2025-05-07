@@ -115,14 +115,14 @@ class TrackingScreen extends StatelessWidget
                   Text(
                     'Je verdient nu:',
                     style: theme.textTheme.headlineSmall?.copyWith(
-                      color: theme.textTheme.bodyLarge?.color?.withOpacity(0.8)
+                      color: theme.textTheme.bodyLarge?.color?.withAlpha((0.8 * 255).round()) // withAlpha
                     ),
                   ),
                   const SizedBox(height: 20),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     decoration: BoxDecoration(
-                      color: myColors.moneyColor?.withOpacity(0.1),
+                      color: myColors.moneyColor?.withAlpha((0.1 * 255).round()), // withAlpha
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
