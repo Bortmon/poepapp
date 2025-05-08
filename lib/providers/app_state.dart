@@ -2,7 +2,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/session_data.dart';
+import '../models/rank.dart';
+import '../models/session_result.dart';
 import '../services/storage_service.dart';
+import '../services/rank_service.dart';
 
 class AppState extends ChangeNotifier with WidgetsBindingObserver
 {
@@ -19,8 +22,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   bool get isTracking => _isTracking;
   double get currentEarnings => _currentEarnings;
   List<SessionData> get sessionsHistory => _sessionsHistory;
-  SessionData? get lastCompletedSession => _sessionsHistory.isNotEmpty ? _sessionsHistory.last : null;
-
 
   AppState()
   {
@@ -34,6 +35,45 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _sessionsHistory = await _storageService.getSessions();
     notifyListeners();
   }
+
+  double get totalSessionEarnings
+  {
+    if (_sessionsHistory.isEmpty) return 0.0;
+    return _sessionsHistory.fold(0.0, (sum, session) => sum + session.earnedAmount);
+  }
+
+  Rank get currentRank
+  {
+    return RankService.getRankForEarnings(totalSessionEarnings);
+  }
+
+  Rank? get nextRank
+  {
+    return RankService.getNextRank(currentRank);
+  }
+
+  double get earningsNeededForNextRank
+  {
+    final nr = nextRank;
+    if (nr == null) return 0.0; 
+    double needed = nr.minEarnings - totalSessionEarnings;
+    return needed < 0 ? 0.0 : needed;
+  }
+
+  double get progressToNextRank
+  {
+    final cr = currentRank;
+    final nr = nextRank;
+    if (nr == null) return 1.0; 
+
+    double earningsInCurrentRank = totalSessionEarnings - cr.minEarnings;
+    double totalEarningsForRankSpan = nr.minEarnings - cr.minEarnings;
+
+    if (totalEarningsForRankSpan <= 0) return 1.0;
+    double progress = earningsInCurrentRank / totalEarningsForRankSpan;
+    return progress.clamp(0.0, 1.0);
+  }
+
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state)
@@ -106,30 +146,44 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     notifyListeners();
   }
 
-  Future<SessionData?> stopTracking() async
+  Future<SessionResult?> stopTracking() async
   {
     _timer?.cancel();
     _isTracking = false;
-    SessionData? completedSession;
+    SessionData? completedSessionData;
+    SessionResult? sessionResult;
+
+    Rank rankBeforeSession = currentRank; 
 
     if (_sessionStartTime != null)
     {
       final endTime = DateTime.now();
       final durationInSeconds = endTime.difference(_sessionStartTime!).inSeconds;
-      final finalEarnings = (durationInSeconds / 3600.0) * _hourlyWage;
+      final finalEarningsInSession = (durationInSeconds / 3600.0) * _hourlyWage;
 
-      completedSession = SessionData(
+      completedSessionData = SessionData(
         startTime: _sessionStartTime!,
         endTime: endTime,
-        earnedAmount: finalEarnings,
+        earnedAmount: finalEarningsInSession,
       );
-      _sessionsHistory.add(completedSession);
+      _sessionsHistory.add(completedSessionData);
       await _storageService.saveSessions(_sessionsHistory);
-      _currentEarnings = finalEarnings;
+      _currentEarnings = finalEarningsInSession; 
+
+      Rank rankAfterSession = currentRank; 
+      bool didRankUp = rankAfterSession != rankBeforeSession && rankAfterSession.minEarnings > rankBeforeSession.minEarnings;
+
+      sessionResult = SessionResult(
+        sessionData: completedSessionData,
+        didRankUp: didRankUp,
+        oldRank: rankBeforeSession,
+        newRank: rankAfterSession,
+        earningsInSession: finalEarningsInSession,
+      );
     }
     _sessionStartTime = null;
-    notifyListeners();
-    return completedSession;
+    notifyListeners(); 
+    return sessionResult;
   }
 
   double get weeklyEarnings

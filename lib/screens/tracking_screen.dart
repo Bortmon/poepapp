@@ -1,14 +1,39 @@
 // lib/screens/tracking_screen.dart
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:confetti/confetti.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../main.dart';
-import '../models/session_data.dart';
+import '../models/session_result.dart';
+import '../models/rank.dart';
 
-class TrackingScreen extends StatelessWidget
+class TrackingScreen extends StatefulWidget
 {
   const TrackingScreen({super.key});
+
+  @override
+  State<TrackingScreen> createState() => _TrackingScreenState();
+}
+
+class _TrackingScreenState extends State<TrackingScreen>
+{
+  late ConfettiController _confettiController;
+
+  @override
+  void initState()
+  {
+    super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+  }
+
+  @override
+  void dispose()
+  {
+    _confettiController.dispose();
+    super.dispose();
+  }
 
   String _formatDurationForPopup(Duration duration)
   {
@@ -25,10 +50,18 @@ class TrackingScreen extends StatelessWidget
     return parts.join(" ");
   }
 
-  Future<void> _showSessionSummaryPopup(BuildContext context, SessionData sessionData) async
+  Future<void> _showSessionSummaryPopup(BuildContext context, SessionResult result) async
   {
     final theme = Theme.of(context);
     final myColors = MyThemeColors.of(context)!;
+    final appState = Provider.of<AppState>(context, listen: false);
+
+    // Bepaal een achtergrondkleur voor de pop-up, iets lichter dan de standaard surface
+    // of gebruik een subtiele tint van de rangkleur.
+    // Voor nu houden we het bij de surface, maar met meer padding en structuur.
+    // Color popupBackgroundColor = theme.colorScheme.surface.withOpacity(0.95);
+    // Als je een tint van de rangkleur wilt:
+    // Color popupBackgroundColor = result.newRank.color.withAlpha(30); // Zeer subtiel
 
     return showDialog<void>(
       context: context,
@@ -36,50 +69,106 @@ class TrackingScreen extends StatelessWidget
       builder: (BuildContext dialogContext)
       {
         return AlertDialog(
-          backgroundColor: theme.colorScheme.surface,
+          backgroundColor: theme.colorScheme.surface, // Of popupBackgroundColor
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+          titlePadding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 12.0),
+          contentPadding: const EdgeInsets.fromLTRB(24.0, 0.0, 24.0, 16.0),
+          actionsPadding: const EdgeInsets.fromLTRB(24.0, 0.0, 24.0, 16.0),
           title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Sessie Voltooid! ', style: theme.textTheme.headlineSmall),
-              const Text('💩🎉', style: TextStyle(fontSize: 24)),
+              Text('Sessie Voltooid!', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+              const Text('🚽✅', style: TextStyle(fontSize: 28)),
             ],
           ),
           content: SingleChildScrollView(
-            child: ListBody(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(
-                  'Goed bezig!',
-                  style: theme.textTheme.titleMedium,
-                ),
+                const Divider(height: 1, thickness: 1),
                 const SizedBox(height: 16),
-                RichText(
-                  text: TextSpan(
-                    style: theme.textTheme.bodyLarge,
-                    children: <TextSpan>[
-                      const TextSpan(text: 'Je hebt '),
-                      TextSpan(
-                        text: formatCurrency(sessionData.earnedAmount),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
+                Row(
+                  children: [
+                    Icon(Icons.monetization_on_outlined, color: myColors.moneyColor, size: 28),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${formatCurrency(result.earningsInSession)} verdiend',
+                        style: theme.textTheme.titleLarge?.copyWith(
                           color: myColors.moneyColor,
-                          fontSize: (theme.textTheme.bodyLarge?.fontSize ?? 16) * 1.1,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const TextSpan(text: ' verdiend.'),
-                    ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 36), // Uitlijnen met tekst hierboven
+                  child: Text(
+                    'Duur: ${_formatDurationForPopup(result.sessionData.duration)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.textTheme.bodyMedium?.color?.withAlpha(180)
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 20),
                 Text(
-                  'Duur: ${_formatDurationForPopup(sessionData.duration)}',
-                  style: theme.textTheme.bodyLarge,
+                  'Jouw Rang:',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(result.newRank.emoji, style: const TextStyle(fontSize: 28)),
+                    const SizedBox(width: 8),
+                    Text(
+                      result.newRank.name,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: result.newRank.color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (appState.nextRank != null) ...[
+                  ClipRRect( // Om de progress bar afgeronde hoeken te geven
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: appState.progressToNextRank,
+                      backgroundColor: theme.colorScheme.onSurface.withAlpha(30), // Duidelijkere achtergrond
+                      valueColor: AlwaysStoppedAnimation<Color>(result.newRank.color),
+                      minHeight: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    // Afronden op 2 decimalen en euroteken toevoegen
+                    'Nog € ${appState.earningsNeededForNextRank.toStringAsFixed(2)} tot ${appState.nextRank!.name} ${appState.nextRank!.emoji}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                       color: theme.textTheme.bodyMedium?.color?.withAlpha(200)
+                    ),
+                  ),
+                ] else ...[
+                   Text(
+                    'Hoogste rang bereikt! Fantastisch!',
+                    style: theme.textTheme.titleMedium?.copyWith(color: result.newRank.color, fontWeight: FontWeight.bold),
+                  ),
+                ]
               ],
             ),
           ),
+          actionsAlignment: MainAxisAlignment.center,
           actions: <Widget>[
-            TextButton(
-              child: Text('Top!', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 16)),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(120, 44),
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+              ),
+              child: const Text('Oké', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               onPressed: ()
               {
                 Navigator.of(dialogContext).pop();
@@ -90,6 +179,100 @@ class TrackingScreen extends StatelessWidget
       },
     );
   }
+
+  Future<void> _showRankUpPopup(BuildContext context, Rank newRank, Rank oldRank) async
+  {
+    final theme = Theme.of(context);
+    _confettiController.play();
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext)
+      {
+        return Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            AlertDialog(
+              backgroundColor: newRank.color.withAlpha(200), // Iets minder transparant voor betere leesbaarheid
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.0)),
+              contentPadding: const EdgeInsets.all(24.0),
+              title: Center(child: Text('RANG GESTEGEN!', style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2))),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Column(
+                          children: [
+                            Text(oldRank.emoji, style: const TextStyle(fontSize: 36)),
+                            Text(oldRank.name, style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70)),
+                          ],
+                        ),
+                        const Icon(Icons.arrow_forward_rounded, size: 30, color: Colors.white),
+                        Column(
+                          children: [
+                            Text(newRank.emoji, style: TextStyle(fontSize: 52, color: newRank.color.computeLuminance() > 0.5 ? Colors.black87: Colors.white)),
+                            Text(newRank.name, style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Gefeliciteerd!',
+                      style: theme.textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Je bent nu een echte ${newRank.name}!',
+                      style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white.withAlpha(220)),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              actions: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: newRank.color,
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                    ),
+                    child: const Text('Fantastisch!'),
+                    onPressed: ()
+                    {
+                      Navigator.of(dialogContext).pop();
+                    },
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _confettiController,
+                blastDirectionality: BlastDirectionality.explosive,
+                shouldLoop: false,
+                numberOfParticles: 30,
+                gravity: 0.3,
+                emissionFrequency: 0.05,
+                colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context)
@@ -115,14 +298,14 @@ class TrackingScreen extends StatelessWidget
                   Text(
                     'Je verdient nu:',
                     style: theme.textTheme.headlineSmall?.copyWith(
-                      color: theme.textTheme.bodyLarge?.color?.withAlpha((0.8 * 255).round()) // withAlpha
+                      color: theme.textTheme.bodyLarge?.color?.withAlpha((0.8 * 255).round())
                     ),
                   ),
                   const SizedBox(height: 20),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     decoration: BoxDecoration(
-                      color: myColors.moneyColor?.withAlpha((0.1 * 255).round()), // withAlpha
+                      color: myColors.moneyColor?.withAlpha((0.1 * 255).round()),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
@@ -150,12 +333,18 @@ class TrackingScreen extends StatelessWidget
                     ),
                     onPressed: () async
                     {
-                      SessionData? completedSession = await appState.stopTracking();
-                      if (completedSession != null && context.mounted)
+                      SessionResult? result = await appState.stopTracking();
+                      if (result != null && mounted)
                       {
-                        await _showSessionSummaryPopup(context, completedSession);
+                        // Eerst de normale samenvatting tonen
+                        await _showSessionSummaryPopup(context, result);
+                        // Daarna, als er een rangstijging was, de speciale pop-up
+                        if (result.didRankUp && mounted)
+                        {
+                          await _showRankUpPopup(context, result.newRank, result.oldRank);
+                        }
                       }
-                      if (context.mounted)
+                      if (mounted)
                       {
                         Navigator.of(context).pop();
                       }

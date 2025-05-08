@@ -7,7 +7,8 @@ import 'settings_screen.dart';
 import 'tracking_screen.dart';
 import '../utils/currency_formatter.dart';
 import '../models/session_data.dart';
-import '../main.dart';
+import '../models/rank.dart';
+import '../main.dart'; 
 
 class HomeScreen extends StatelessWidget
 {
@@ -82,6 +83,8 @@ class HomeScreen extends StatelessWidget
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
+                _buildRankSection(context, appState), 
+                const SizedBox(height: 24),
                 Container(
                   padding: const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
@@ -89,7 +92,7 @@ class HomeScreen extends StatelessWidget
                     borderRadius: BorderRadius.circular(20.0),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withAlpha((0.2 * 255).round()), // withAlpha
+                        color: Colors.black.withAlpha((0.2 * 255).round()),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       )
@@ -107,7 +110,7 @@ class HomeScreen extends StatelessWidget
                         'Klaar voor je volgende sessie?',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.headlineSmall?.copyWith(
-                          color: theme.textTheme.bodyLarge?.color?.withAlpha((0.9 * 255).round()) // withAlpha
+                          color: theme.textTheme.bodyLarge?.color?.withAlpha((0.9 * 255).round())
                         ),
                       ),
                     ],
@@ -118,10 +121,10 @@ class HomeScreen extends StatelessWidget
                   icon: const Icon(Icons.play_circle_fill_outlined, size: 28),
                   label: const Text('Start Sessie'),
                   style: theme.elevatedButtonTheme.style?.copyWith(
-                    padding: WidgetStateProperty.all( // WidgetStateProperty
+                    padding: WidgetStateProperty.all(
                       const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
                     ),
-                    textStyle: WidgetStateProperty.all( // WidgetStateProperty
+                    textStyle: WidgetStateProperty.all(
                       theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: theme.colorScheme.onPrimary,
@@ -139,7 +142,7 @@ class HomeScreen extends StatelessWidget
                   Padding(
                     padding: const EdgeInsets.only(top: 20.0),
                     child: Card(
-                      color: theme.colorScheme.primary.withAlpha((0.1 * 255).round()), // withAlpha
+                      color: theme.colorScheme.primary.withAlpha((0.1 * 255).round()),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Row(
@@ -164,6 +167,59 @@ class HomeScreen extends StatelessWidget
       ),
     );
   }
+
+  Widget _buildRankSection(BuildContext context, AppState appState)
+  {
+    final theme = Theme.of(context);
+    final Rank currentRank = appState.currentRank;
+    final Rank? nextRank = appState.nextRank;
+    final double progress = appState.progressToNextRank;
+    final double needed = appState.earningsNeededForNextRank;
+
+    return Card(
+      elevation: 4,
+      color: currentRank.color.withAlpha(50), 
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text(
+              '${currentRank.emoji} ${currentRank.name}',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: currentRank.color, 
+              ),
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: progress,
+              backgroundColor: theme.colorScheme.surface.withAlpha(150),
+              valueColor: AlwaysStoppedAnimation<Color>(currentRank.color),
+              minHeight: 10,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            const SizedBox(height: 8),
+            if (nextRank != null)
+              Text(
+                'Nog € ${needed.toStringAsFixed(2)} tot ${nextRank.name} ${nextRank.emoji}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodyMedium?.color?.withAlpha(200)
+                ),
+              )
+            else
+              Text(
+                'Hoogste rang bereikt! Gefeliciteerd!',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: currentRank.color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildStatsCard(BuildContext context, AppState appState, MyThemeColors myColors)
   {
@@ -190,7 +246,7 @@ class HomeScreen extends StatelessWidget
             _buildStatRow(
               context,
               label: 'Totaal:',
-              value: formatCurrency(appState.sessionsHistory.fold(0.0, (sum, s) => sum + s.earnedAmount)),
+              value: formatCurrency(appState.totalSessionEarnings), 
               valueColor: myColors.moneyColor,
             ),
           ],
@@ -244,7 +300,7 @@ class HomeScreen extends StatelessWidget
               dataRowMaxHeight: 56,
               headingTextStyle: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: theme.textTheme.bodyLarge?.color?.withAlpha((0.7 * 255).round()), // withAlpha
+                color: theme.textTheme.bodyLarge?.color?.withAlpha((0.7 * 255).round()),
               ),
               dataTextStyle: theme.textTheme.bodyMedium,
               columns: const [
