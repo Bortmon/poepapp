@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import 'achievements_screen.dart'; // Importeer AchievementsScreen
 
 class SettingsScreen extends StatefulWidget
 {
@@ -128,12 +129,12 @@ class _SettingsScreenState extends State<SettingsScreen>
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch, 
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Text(
                 'Jouw Uurloon',
                 style: theme.textTheme.headlineSmall,
-                textAlign: TextAlign.start, 
+                textAlign: TextAlign.start,
               ),
               const SizedBox(height: 8),
               Text(
@@ -181,10 +182,20 @@ class _SettingsScreenState extends State<SettingsScreen>
               const SizedBox(height: 40),
               const Divider(),
               const SizedBox(height: 20),
+              ListTile(
+                leading: Icon(Icons.military_tech_outlined, color: theme.colorScheme.primary),
+                title: Text('Mijn Prestaties', style: theme.textTheme.titleMedium),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AchievementsScreen()));
+                },
+              ),
+              const Divider(),
+              const SizedBox(height: 20),
               Text(
-                'Gegevens Resetten',
+                'Gevaarlijke Zone',
                 style: theme.textTheme.titleLarge?.copyWith(color: theme.colorScheme.error),
-                textAlign: TextAlign.start, 
+                textAlign: TextAlign.start,
               ),
               const SizedBox(height: 8),
               Text(
@@ -192,7 +203,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                  style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.textTheme.bodyMedium?.color?.withAlpha((0.7 * 255).round())
                 ),
-                textAlign: TextAlign.start, 
+                textAlign: TextAlign.start,
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
@@ -210,7 +221,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 ),
                 onPressed: _confirmAndResetData,
               ),
-              const SizedBox(height: 50), 
+              const SizedBox(height: 50),
               Text(
                 'Made by Bart Akkerman',
                 textAlign: TextAlign.center,
@@ -218,7 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   color: theme.textTheme.bodySmall?.color?.withAlpha((0.6 * 255).round())
                 ),
               ),
-              const SizedBox(height: 10), 
+              const SizedBox(height: 10),
             ],
           ),
         ),

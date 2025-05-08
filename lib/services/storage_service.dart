@@ -7,6 +7,7 @@ class StorageService
 {
   static const String _hourlyWageKey = 'hourlyWage';
   static const String _sessionsKey = 'sessions';
+  static const String _unlockedAchievementsKey = 'unlockedAchievements';
 
   Future<void> saveHourlyWage(double wage) async
   {
@@ -38,10 +39,21 @@ class StorageService
     return sessionsJson.map((s) => SessionData.fromJson(jsonDecode(s))).toList();
   }
 
+  Future<void> saveUnlockedAchievementIds(List<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_unlockedAchievementsKey, ids);
+  }
+
+  Future<List<String>> getUnlockedAchievementIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_unlockedAchievementsKey) ?? [];
+  }
+
   Future<void> clearAllData() async
   {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_hourlyWageKey);
     await prefs.remove(_sessionsKey);
+    await prefs.remove(_unlockedAchievementsKey);
   }
 }

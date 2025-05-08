@@ -4,20 +4,21 @@ publish_to: 'none'
 version: 0.1.0
 
 environment:
-  sdk: '>=3.3.3 <4.0.0' # Ik heb dit aangepast naar een gangbaardere range, jouw ^3.7.2 is ook prima
+  sdk: '>=3.3.3 <4.0.0' 
 
 dependencies:
   flutter:
     sdk: flutter
-  provider: ^6.0.0 # Check voor de laatste versie (bijv. ^6.1.2)
-  shared_preferences: ^2.0.0 # Check voor de laatste versie (bijv. ^2.2.3)
-  intl: ^0.19.0 # Check voor de laatste versie
+  provider: ^6.0.0 
+  shared_preferences: ^2.0.0 
+  intl: ^0.19.0 
   confetti: ^0.6.0 
+  fl_chart: ^0.68.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0 # ^3.0.0 of ^4.0.0 is gangbaarder dan ^5.0.0, maar ^5.0.0 kan ook als die bestaat
+  flutter_lints: ^3.0.0 
 
 flutter:
   uses-material-design: true

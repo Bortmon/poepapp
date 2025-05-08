@@ -8,6 +8,7 @@ import '../utils/currency_formatter.dart';
 import '../main.dart';
 import '../models/session_result.dart';
 import '../models/rank.dart';
+import '../models/achievement.dart'; // Importeer Achievement
 
 class TrackingScreen extends StatefulWidget
 {
@@ -20,18 +21,22 @@ class TrackingScreen extends StatefulWidget
 class _TrackingScreenState extends State<TrackingScreen>
 {
   late ConfettiController _confettiController;
+  late ConfettiController _achievementConfettiController;
+
 
   @override
   void initState()
   {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+    _achievementConfettiController = ConfettiController(duration: const Duration(seconds: 1));
   }
 
   @override
   void dispose()
   {
     _confettiController.dispose();
+    _achievementConfettiController.dispose();
     super.dispose();
   }
 
@@ -50,18 +55,89 @@ class _TrackingScreenState extends State<TrackingScreen>
     return parts.join(" ");
   }
 
+  Future<void> _showAchievementUnlockedPopup(BuildContext context, Achievement achievement) async {
+    final theme = Theme.of(context);
+    _achievementConfettiController.play();
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            AlertDialog(
+              backgroundColor: achievement.iconColor.withAlpha(150),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+              title: Center(
+                child: Text(
+                  'PRESTATIE ONTGRENDELD!',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(achievement.icon, size: 60, color: Colors.white),
+                  const SizedBox(height: 16),
+                  Text(
+                    achievement.name,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    achievement.description,
+                    style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white.withAlpha(220)),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              actions: <Widget>[
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: achievement.iconColor,
+                  ),
+                  child: const Text('Cool!', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                  },
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _achievementConfettiController,
+                blastDirectionality: BlastDirectionality.explosive,
+                particleDrag: 0.05,
+                emissionFrequency: 0.05,
+                numberOfParticles: 20,
+                gravity: 0.05,
+                shouldLoop: false,
+                colors: const [Colors.yellow, Colors.white, Colors.amber],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
   Future<void> _showSessionSummaryPopup(BuildContext context, SessionResult result) async
   {
     final theme = Theme.of(context);
     final myColors = MyThemeColors.of(context)!;
     final appState = Provider.of<AppState>(context, listen: false);
-
-    // Bepaal een achtergrondkleur voor de pop-up, iets lichter dan de standaard surface
-    // of gebruik een subtiele tint van de rangkleur.
-    // Voor nu houden we het bij de surface, maar met meer padding en structuur.
-    // Color popupBackgroundColor = theme.colorScheme.surface.withOpacity(0.95);
-    // Als je een tint van de rangkleur wilt:
-    // Color popupBackgroundColor = result.newRank.color.withAlpha(30); // Zeer subtiel
 
     return showDialog<void>(
       context: context,
@@ -69,7 +145,7 @@ class _TrackingScreenState extends State<TrackingScreen>
       builder: (BuildContext dialogContext)
       {
         return AlertDialog(
-          backgroundColor: theme.colorScheme.surface, // Of popupBackgroundColor
+          backgroundColor: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
           titlePadding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 12.0),
           contentPadding: const EdgeInsets.fromLTRB(24.0, 0.0, 24.0, 16.0),
@@ -105,7 +181,7 @@ class _TrackingScreenState extends State<TrackingScreen>
                 ),
                 const SizedBox(height: 4),
                 Padding(
-                  padding: const EdgeInsets.only(left: 36), // Uitlijnen met tekst hierboven
+                  padding: const EdgeInsets.only(left: 36),
                   child: Text(
                     'Duur: ${_formatDurationForPopup(result.sessionData.duration)}',
                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -134,18 +210,17 @@ class _TrackingScreenState extends State<TrackingScreen>
                 ),
                 const SizedBox(height: 12),
                 if (appState.nextRank != null) ...[
-                  ClipRRect( // Om de progress bar afgeronde hoeken te geven
+                  ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: LinearProgressIndicator(
                       value: appState.progressToNextRank,
-                      backgroundColor: theme.colorScheme.onSurface.withAlpha(30), // Duidelijkere achtergrond
+                      backgroundColor: theme.colorScheme.onSurface.withAlpha(30),
                       valueColor: AlwaysStoppedAnimation<Color>(result.newRank.color),
                       minHeight: 12,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    // Afronden op 2 decimalen en euroteken toevoegen
                     'Nog € ${appState.earningsNeededForNextRank.toStringAsFixed(2)} tot ${appState.nextRank!.name} ${appState.nextRank!.emoji}',
                     style: theme.textTheme.bodyMedium?.copyWith(
                        color: theme.textTheme.bodyMedium?.color?.withAlpha(200)
@@ -194,7 +269,7 @@ class _TrackingScreenState extends State<TrackingScreen>
           alignment: Alignment.topCenter,
           children: [
             AlertDialog(
-              backgroundColor: newRank.color.withAlpha(200), // Iets minder transparant voor betere leesbaarheid
+              backgroundColor: newRank.color.withAlpha(200),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.0)),
               contentPadding: const EdgeInsets.all(24.0),
               title: Center(child: Text('RANG GESTEGEN!', style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2))),
@@ -334,14 +409,19 @@ class _TrackingScreenState extends State<TrackingScreen>
                     onPressed: () async
                     {
                       SessionResult? result = await appState.stopTracking();
+                      List<Achievement> newlyUnlocked = appState.newlyUnlockedAchievementsToShow;
+
                       if (result != null && mounted)
                       {
-                        // Eerst de normale samenvatting tonen
                         await _showSessionSummaryPopup(context, result);
-                        // Daarna, als er een rangstijging was, de speciale pop-up
                         if (result.didRankUp && mounted)
                         {
                           await _showRankUpPopup(context, result.newRank, result.oldRank);
+                        }
+                      }
+                      if (mounted && newlyUnlocked.isNotEmpty) {
+                        for (var ach in newlyUnlocked) {
+                           await _showAchievementUnlockedPopup(context, ach);
                         }
                       }
                       if (mounted)
