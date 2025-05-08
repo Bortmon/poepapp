@@ -1,0 +1,29 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "poepapp-e3566",
+          "appId": "1:1075749085184:android:8b0ebf36f52ea23d1978e5",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "poepapp-e3566",
+          "configurations": {
+            "android": "1:1075749085184:android:8b0ebf36f52ea23d1978e5",
+            "ios": "1:1075749085184:ios:d85d6a74fbcb88bd1978e5",
+            "macos": "1:1075749085184:ios:d85d6a74fbcb88bd1978e5",
+            "web": "1:1075749085184:web:6d28aa192391153f1978e5",
+            "windows": "1:1075749085184:web:06bbf0e0b6b17fcf1978e5"
+          }
+        }
+      }
+    }
+  }
+}

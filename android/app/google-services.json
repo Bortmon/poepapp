@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1075749085184",
+    "project_id": "poepapp-e3566",
+    "storage_bucket": "poepapp-e3566.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1075749085184:android:8b0ebf36f52ea23d1978e5",
+        "android_client_info": {
+          "package_name": "com.example.poepapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWR7jZMeUqFc0hx9VYGKZr19yMUdmzGx8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

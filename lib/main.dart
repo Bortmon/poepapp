@@ -2,18 +2,28 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart'; 
+import 'firebase_options.dart';
 import 'providers/app_state.dart';
 import 'screens/home_screen.dart';
+import 'screens/nickname_setup_screen.dart'; 
 
 void main() async
 {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await initializeDateFormatting('nl_NL', null);
+
+  final prefs = await SharedPreferences.getInstance();
+  final bool hasNickname = prefs.getString('userName') != null && prefs.getString('userName')!.isNotEmpty;
 
   runApp(
     ChangeNotifierProvider(
       create: (context) => AppState(),
-      child: const MyApp(),
+      child: MyApp(hasNickname: hasNickname), // Geef status door
     ),
   );
 }
@@ -55,7 +65,8 @@ class MyThemeColors extends ThemeExtension<MyThemeColors>
 
 class MyApp extends StatelessWidget
 {
-  const MyApp({super.key});
+  final bool hasNickname;
+  const MyApp({super.key, required this.hasNickname});
 
   @override
   Widget build(BuildContext context)
@@ -159,7 +170,7 @@ class MyApp extends StatelessWidget
           MyThemeColors(moneyColor: moneyGreen),
         ],
       ),
-      home: const HomeScreen(),
+      home: hasNickname ? const HomeScreen() : const NicknameSetupScreen(),
     );
   }
 }

@@ -7,6 +7,7 @@ import 'settings_screen.dart';
 import 'tracking_screen.dart';
 import 'achievements_screen.dart';
 import 'statistics_screen.dart';
+import 'leaderboard_screen.dart'; 
 import '../utils/currency_formatter.dart';
 import '../models/session_data.dart';
 import '../models/rank.dart';
@@ -36,6 +37,14 @@ class HomeScreen extends StatelessWidget
       MaterialPageRoute(builder: (_) => const StatisticsScreen()),
     );
   }
+
+  void _navigateToLeaderboard(BuildContext context)
+  {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+    );
+  }
+
 
   void _startTracking(BuildContext context, AppState appState)
   {
@@ -157,6 +166,7 @@ class HomeScreen extends StatelessWidget
                 const SizedBox(height: 20),
                 if (appState.sessionsHistory.isNotEmpty)
                   _buildHistorySection(context, appState, myColors),
+
                 const SizedBox(height: 24),
                 Card(
                   clipBehavior: Clip.antiAlias,
@@ -180,6 +190,30 @@ class HomeScreen extends StatelessWidget
                     ),
                   ),
                 ),
+                const SizedBox(height: 12), 
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => _navigateToLeaderboard(context), 
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.leaderboard_rounded, color: theme.colorScheme.primary, size: 28),
+                              const SizedBox(width: 12),
+                              Text('Leaderboard', style: theme.textTheme.titleMedium),
+                            ],
+                          ),
+                          Icon(Icons.chevron_right_rounded, color: theme.iconTheme.color?.withAlpha(150)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
                 if (appState.hourlyWage <= 0 && !appState.isTracking && appState.sessionsHistory.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 20.0),

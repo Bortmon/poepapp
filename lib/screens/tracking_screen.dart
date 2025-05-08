@@ -1,5 +1,4 @@
 // lib/screens/tracking_screen.dart
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:confetti/confetti.dart';
@@ -8,7 +7,7 @@ import '../utils/currency_formatter.dart';
 import '../main.dart';
 import '../models/session_result.dart';
 import '../models/rank.dart';
-import '../models/achievement.dart'; // Importeer Achievement
+import '../models/achievement.dart'; 
 
 class TrackingScreen extends StatefulWidget
 {

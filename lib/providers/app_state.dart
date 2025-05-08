@@ -1,10 +1,13 @@
 // lib/providers/app_state.dart
 import 'dart:async';
-import 'dart:math';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart'; // Importeer fl_chart
+import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:uuid/uuid.dart'; 
+
 import '../models/session_data.dart';
 import '../models/rank.dart';
 import '../models/session_result.dart';
@@ -17,9 +20,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
 {
   final StorageService _storageService = StorageService();
   final AchievementService _achievementService = AchievementService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   List<Achievement> _allAchievements = [];
   List<AchievementId> _unlockedAchievementIds = [];
   final List<Achievement> _newlyUnlockedAchievementsBuffer = [];
+
+  String? _currentUserId;
+  String _userName = "Anonieme Held";
 
 
   double _hourlyWage = 0.0;
@@ -39,12 +47,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _newlyUnlockedAchievementsBuffer.clear();
     return buffer;
   }
+  String get userName => _userName;
+  String? get currentUserId => _currentUserId;
 
 
   AppState()
   {
     _initializeAchievements();
-    _loadInitialData();
+    _loadInitialData().then((_) {
+      _initializeUser(); 
+    });
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -60,8 +72,27 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _unlockedAchievementIds = storedIds.map((idStr) => AchievementId.values.firstWhere((e) => e.toString() == idStr)).toList();
     _updateAchievementsStatus();
     _checkForNewAchievements(isInitialLoad: true);
+  }
+
+  Future<void> _initializeUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    _currentUserId = prefs.getString('appUserId');
+    if (_currentUserId == null) {
+      _currentUserId = const Uuid().v4();
+      await prefs.setString('appUserId', _currentUserId!);
+    }
+    _userName = prefs.getString('userName') ?? "Anonieme Held";
     notifyListeners();
   }
+
+  Future<void> setUserName(String name) async {
+    _userName = name.trim().isEmpty ? "Anonieme Held" : name.trim();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userName', _userName);
+    await _updateLeaderboardEntry();
+    notifyListeners();
+  }
+
 
   void _updateAchievementsStatus() {
     for (var ach in _allAchievements) {
@@ -199,6 +230,31 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     notifyListeners();
   }
 
+  Future<void> _updateLeaderboardEntry() async {
+    if (_currentUserId == null || _userName == "Anonieme Held") return;
+
+    Rank userRank = currentRank;
+
+    Map<String, dynamic> leaderboardData = {
+      'userId': _currentUserId,
+      'userName': _userName,
+      'totalEarnings': totalSessionEarnings,
+      'currentRankName': userRank.name,
+      'currentRankEmoji': userRank.emoji,
+      'lastUpdated': FieldValue.serverTimestamp(),
+    };
+
+    try {
+      await _firestore
+          .collection('leaderboardEntries')
+          .doc(_currentUserId)
+          .set(leaderboardData, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint("Fout bij bijwerken leaderboard: $e");
+    }
+  }
+
+
   Future<SessionResult?> stopTracking() async
   {
     _timer?.cancel();
@@ -234,6 +290,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
         earningsInSession: finalEarningsInSession,
       );
       await _checkForNewAchievements();
+      await _updateLeaderboardEntry();
     }
     _sessionStartTime = null;
     notifyListeners();
@@ -264,6 +321,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _unlockedAchievementIds = [];
     _initializeAchievements();
     _newlyUnlockedAchievementsBuffer.clear();
+
+    final prefs = await SharedPreferences.getInstance(); 
+    await prefs.remove('userName');
+    _userName = "Anonieme Held"; 
+    await _updateLeaderboardEntry();
+
     notifyListeners();
   }
 
@@ -343,9 +406,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   List<PieChartSectionData> get durationPieChartSections {
     if (_sessionsHistory.isEmpty) return [];
 
-    int cat1 = 0; // < 1 min
-    int cat2 = 0; // 1-3 min
-    int cat3 = 0; // > 3 min
+    int cat1 = 0;
+    int cat2 = 0;
+    int cat3 = 0;
 
     for (var session in _sessionsHistory) {
       if (session.duration.inMinutes < 1) {
