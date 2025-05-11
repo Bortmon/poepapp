@@ -105,6 +105,27 @@ class AchievementService {
         iconColor: Colors.greenAccent,
       ),
       Achievement(
+        id: AchievementId.challengeStarter,
+        name: 'Uitdager Begint',
+        description: 'Voltooi je eerste dagelijkse uitdaging.',
+        icon: Icons.emoji_flags_outlined,
+        iconColor: Colors.lightBlue,
+      ),
+      Achievement(
+        id: AchievementId.challengeStreak3,
+        name: 'Streak van Drie',
+        description: 'Voltooi 3 dagen op rij een dagelijkse uitdaging.',
+        icon: Icons.filter_3_rounded,
+        iconColor: Colors.orange,
+      ),
+      Achievement(
+        id: AchievementId.challengeStreak7,
+        name: 'Week Vol Uitdagingen',
+        description: 'Voltooi 7 dagen op rij een dagelijkse uitdaging.',
+        icon: Icons.calendar_view_week_rounded,
+        iconColor: Colors.purpleAccent,
+      ),
+      Achievement(
         id: AchievementId.theRegular,
         name: 'De Regelmatige',
         description: 'Voltooi minstens één sessie per dag, 5 dagen op rij. (Binnenkort!)',
@@ -178,10 +199,19 @@ class AchievementService {
           break;
         case AchievementId.marathonMan:
           int totalSecondsSpent = appState.sessionsHistory.fold(0, (prev, s) => prev + s.duration.inSeconds);
-          conditionMet = totalSecondsSpent >= (3 * 60 * 60); // 3 uur in seconden
+          conditionMet = totalSecondsSpent >= (3 * 60 * 60);
           break;
         case AchievementId.highRoller:
           conditionMet = appState.totalSessionEarnings >= 250.0;
+          break;
+        case AchievementId.challengeStarter:
+          conditionMet = appState.anyChallengeEverCompleted;
+          break;
+        case AchievementId.challengeStreak3:
+          conditionMet = appState.dailyChallengeStreak >= 3;
+          break;
+        case AchievementId.challengeStreak7:
+          conditionMet = appState.dailyChallengeStreak >= 7;
           break;
         case AchievementId.theRegular:
         case AchievementId.theEfficient:

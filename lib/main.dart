@@ -6,8 +6,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'providers/app_state.dart';
-import 'screens/home_screen.dart';
+// import 'screens/home_screen.dart'; // Niet meer direct nodig hier
 import 'screens/nickname_setup_screen.dart';
+import 'screens/main_navigation_screen.dart'; // Importeer het nieuwe scherm
 
 void main() async
 {
@@ -170,7 +171,7 @@ class MyApp extends StatelessWidget
           MyThemeColors(moneyColor: moneyGreen),
         ],
       ),
-      home: hasNickname ? const HomeScreen() : const NicknameSetupScreen(),
+      home: hasNickname ? const MainNavigationScreen() : const NicknameSetupScreen(), // AANGEPAST
     );
   }
 }

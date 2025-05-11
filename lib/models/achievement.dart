@@ -17,6 +17,9 @@ enum AchievementId {
   centurion,
   marathonMan,
   highRoller,
+  challengeStarter, 
+  challengeStreak3, 
+  challengeStreak7, 
   theRegular,
   theEfficient
 }

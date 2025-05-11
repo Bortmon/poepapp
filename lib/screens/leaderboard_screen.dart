@@ -28,7 +28,7 @@ class LeaderboardScreen extends StatelessWidget {
     String name = userData['userName'] ?? 'Anoniem';
     String rankEmoji = userData['currentRankEmoji'] ?? '❓';
     String rankName = userData['currentRankName'] ?? 'Onbekend';
-    String userStatus = userData['userStatus'] ?? ''; // Haal status op
+    String userStatus = userData['userStatus'] ?? '';
     List<dynamic> rawRecentSessions = userData['recentSessions'] ?? [];
     List<SessionData> recentSessions = rawRecentSessions
         .map((sessionMap) => SessionData.fromJson(Map<String, dynamic>.from(sessionMap)))
@@ -39,14 +39,15 @@ class LeaderboardScreen extends StatelessWidget {
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           backgroundColor: theme.colorScheme.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-          contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0), // Bredere dialog
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+          contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
           title: Row(
             children: [
-              Text(rankEmoji, style: const TextStyle(fontSize: 28)),
-              const SizedBox(width: 10),
+              Text(rankEmoji, style: const TextStyle(fontSize: 32)), // Iets grotere emoji
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   name,
@@ -56,84 +57,98 @@ class LeaderboardScreen extends StatelessWidget {
               ),
             ],
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text("Rang: $rankName", style: theme.textTheme.titleMedium),
-                if (userStatus.isNotEmpty) ...[ // Toon status als deze bestaat
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.comment_outlined, size: 16, color: theme.iconTheme.color?.withAlpha(150)),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          '"$userStatus"',
-                          style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: theme.textTheme.bodyMedium?.color?.withAlpha(200)),
+          content: Container( // Container om breedte te sturen
+            width: MediaQuery.of(context).size.width * 0.85, // Bijv. 85% van schermbreedte
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text("Rang: $rankName", style: theme.textTheme.titleMedium?.copyWith(color: theme.textTheme.titleMedium?.color?.withAlpha(220))),
+                  if (userStatus.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.chat_bubble_outline_rounded, size: 16, color: theme.iconTheme.color?.withAlpha(180)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '"$userStatus"',
+                            style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: theme.textTheme.bodyMedium?.color?.withAlpha(200)),
+                          ),
                         ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  Text("Recente Sessies:", style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  if (recentSessions.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.onSurface.withAlpha(20), // Subtiele achtergrond
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ],
-                  ),
+                      child: const Center(
+                        child: Text("Nog geen recente sessies beschikbaar.", style: TextStyle(fontStyle: FontStyle.italic)),
+                      ),
+                    )
+                  else
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: recentSessions.map((session) {
+                        String durationText = _formatDurationPopup(session.duration);
+                        if (session.duration.inSeconds == 0 && session.duration.inMilliseconds > 0) {
+                          durationText = "<1s";
+                        } else if (session.duration.inSeconds == 0) {
+                          durationText = "0s";
+                        }
+                        return Container( // Blok voor elke sessie
+                          margin: const EdgeInsets.symmetric(vertical: 4.0),
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.onSurface.withAlpha(25), // Grijzig transparant blok
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  DateFormat('dd-MM-yy HH:mm', 'nl_NL').format(session.startTime),
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  durationText,
+                                  style: theme.textTheme.bodyMedium,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  formatCurrencyStandard(session.earnedAmount),
+                                  style: theme.textTheme.bodyMedium?.copyWith(color: myColors.moneyColor, fontWeight: FontWeight.w500),
+                                  textAlign: TextAlign.end,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
                 ],
-                const SizedBox(height: 16),
-                Text("Recente Sessies:", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                if (recentSessions.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8.0),
-                    child: Text("Nog geen recente sessies beschikbaar.", style: TextStyle(fontStyle: FontStyle.italic)),
-                  )
-                else
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: recentSessions.map((session) {
-                      String durationText = _formatDurationPopup(session.duration);
-                      if (session.duration.inSeconds == 0 && session.duration.inMilliseconds > 0) {
-                        durationText = "<1s";
-                      } else if (session.duration.inSeconds == 0) {
-                        durationText = "0s";
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: Text(
-                                DateFormat('dd-MM HH:mm', 'nl_NL').format(session.startTime),
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                durationText,
-                                style: theme.textTheme.bodySmall,
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                formatCurrencyStandard(session.earnedAmount),
-                                style: theme.textTheme.bodySmall?.copyWith(color: myColors.moneyColor),
-                                textAlign: TextAlign.end,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-              ],
+              ),
             ),
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Sluiten'),
+              child: const Text('Sluiten', style: TextStyle(fontWeight: FontWeight.bold)),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
               },

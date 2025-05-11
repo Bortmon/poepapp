@@ -32,6 +32,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   List<Achievement> _allAchievements = [];
   List<AchievementId> _unlockedAchievementIds = [];
   final List<Achievement> _newlyUnlockedAchievementsBuffer = [];
+  final List<Challenge> _newlyCompletedChallengesBuffer = [];
+
 
   String? _currentUserId;
   String _userName = "Anonieme Held";
@@ -48,6 +50,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   Challenge? _currentDailyChallenge;
   List<String> _completedDailyChallengeIdsForToday = [];
   double _currentChallengeProgress = 0.0;
+  int _dailyChallengeStreak = 0;
+  bool _anyChallengeEverCompleted = false;
+
 
   final List<String> _toiletTrivia = [
     "De gemiddelde persoon brengt ongeveer 3 maanden van zijn leven door op het toilet.",
@@ -76,12 +81,19 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _newlyUnlockedAchievementsBuffer.clear();
     return buffer;
   }
+  List<Challenge> get newlyCompletedChallengesToShow {
+    final buffer = List<Challenge>.from(_newlyCompletedChallengesBuffer);
+    _newlyCompletedChallengesBuffer.clear();
+    return buffer;
+  }
   String get userName => _userName;
   String? get currentUserId => _currentUserId;
   String get currentToiletTrivia => _currentTrivia;
   String get userStatus => _userStatus;
   Challenge? get currentDailyChallenge => _currentDailyChallenge;
   double get currentChallengeProgress => _currentChallengeProgress;
+  int get dailyChallengeStreak => _dailyChallengeStreak;
+  bool get anyChallengeEverCompleted => _anyChallengeEverCompleted;
 
 
   AppState()
@@ -141,6 +153,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     List<String> storedIds = await _storageService.getUnlockedAchievementIds();
     _unlockedAchievementIds = storedIds.map((idStr) => AchievementId.values.firstWhere((e) => e.toString() == idStr, orElse: () => AchievementId.firstFlush )).toList();
     _updateAchievementsStatus();
+
+    final prefs = await SharedPreferences.getInstance();
+    _dailyChallengeStreak = prefs.getInt('dailyChallengeStreak') ?? 0;
+    _anyChallengeEverCompleted = prefs.getBool('anyChallengeEverCompleted') ?? false;
+
     _checkForNewAchievements(isInitialLoad: true);
   }
 
@@ -156,8 +173,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   }
 
   Future<void> _loadOrAssignDailyChallenge() async {
+    final prefs = await SharedPreferences.getInstance();
     final todayString = DateTime.now().toIso8601String().substring(0, 10);
     String? lastChallengeDateString = await _storageService.getLastChallengeDateString();
+    String? lastCompletedChallengeDateString = prefs.getString('lastCompletedChallengeDate');
+
 
     if (lastChallengeDateString != todayString) {
       _completedDailyChallengeIdsForToday = [];
@@ -165,6 +185,33 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
       _currentDailyChallenge = _challengeService.selectDailyChallenge(DateTime.now(), _completedDailyChallengeIdsForToday);
       await _storageService.saveCurrentDailyChallenge(_currentDailyChallenge);
       await _storageService.saveLastChallengeDate(DateTime.now());
+
+      if (lastCompletedChallengeDateString != null) {
+        DateTime lastCompletedDate = DateTime.parse(lastCompletedChallengeDateString);
+        DateTime yesterday = DateTime.now().subtract(const Duration(days: 1));
+        DateTime dayBeforeYesterday = DateTime.now().subtract(const Duration(days: 2));
+
+        bool wasYesterday = lastCompletedDate.year == yesterday.year &&
+                            lastCompletedDate.month == yesterday.month &&
+                            lastCompletedDate.day == yesterday.day;
+
+        bool wasDayBeforeYesterdayAndYesterdayChallengeWasSkipped =
+            (lastCompletedDate.year == dayBeforeYesterday.year &&
+             lastCompletedDate.month == dayBeforeYesterday.month &&
+             lastCompletedDate.day == dayBeforeYesterday.day) &&
+            (lastChallengeDateString == DateTime(yesterday.year, yesterday.month, yesterday.day).toIso8601String().substring(0,10));
+
+
+        if (!wasYesterday && !wasDayBeforeYesterdayAndYesterdayChallengeWasSkipped) {
+          _dailyChallengeStreak = 0;
+          await prefs.setInt('dailyChallengeStreak', _dailyChallengeStreak);
+        }
+      } else {
+         _dailyChallengeStreak = 0;
+         await prefs.setInt('dailyChallengeStreak', _dailyChallengeStreak);
+      }
+
+
     } else {
       _currentDailyChallenge = await _storageService.getCurrentDailyChallenge();
       _completedDailyChallengeIdsForToday = await _storageService.getCompletedDailyChallengeIds();
@@ -235,11 +282,23 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     }
 
     if (challengeNowCompleted) {
-      _currentDailyChallenge!.isCompleted = true;
+      Challenge justCompletedChallenge = _currentDailyChallenge!;
+      justCompletedChallenge.isCompleted = true;
+
       HapticFeedback.heavyImpact();
-      _completedDailyChallengeIdsForToday.add(_currentDailyChallenge!.id);
-      await _storageService.saveCurrentDailyChallenge(_currentDailyChallenge);
+      _completedDailyChallengeIdsForToday.add(justCompletedChallenge.id);
+      await _storageService.saveCurrentDailyChallenge(justCompletedChallenge);
       await _storageService.saveCompletedDailyChallengeIds(_completedDailyChallengeIdsForToday);
+
+      _newlyCompletedChallengesBuffer.add(justCompletedChallenge);
+
+      _anyChallengeEverCompleted = true;
+      _dailyChallengeStreak++;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('anyChallengeEverCompleted', _anyChallengeEverCompleted);
+      await prefs.setInt('dailyChallengeStreak', _dailyChallengeStreak);
+      await prefs.setString('lastCompletedChallengeDate', DateTime.now().toIso8601String().substring(0,10));
+
 
       Challenge? nextChallenge = _challengeService.selectDailyChallenge(DateTime.now(), _completedDailyChallengeIdsForToday);
       _currentDailyChallenge = nextChallenge;
@@ -516,6 +575,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
         .fold(0.0, (currentTotal, session) => currentTotal + session.earnedAmount);
   }
 
+  double get earningsToday {
+    DateTime today = DateTime.now();
+    DateTime startOfToday = DateTime(today.year, today.month, today.day);
+    return _sessionsHistory
+        .where((session) => session.startTime.isAfter(startOfToday) || session.startTime.isAtSameMomentAs(startOfToday))
+        .fold(0.0, (currentTotal, session) => currentTotal + session.earnedAmount);
+  }
+
   Future<void> deleteSession(SessionData sessionToDelete) async {
     _sessionsHistory.removeWhere((session) =>
         session.startTime == sessionToDelete.startTime &&
@@ -555,8 +622,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     await prefs.remove('userName');
     await prefs.remove('userStatus');
     await prefs.remove('dataVersion');
+    await prefs.remove('dailyChallengeStreak');
+    await prefs.remove('anyChallengeEverCompleted');
+    await prefs.remove('lastCompletedChallengeDate');
+
     _userName = "Anonieme Held";
     _userStatus = "";
+    _dailyChallengeStreak = 0;
+    _anyChallengeEverCompleted = false;
+
     await _updateLeaderboardEntry(isReset: true);
     await _loadOrAssignDailyChallenge();
 

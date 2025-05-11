@@ -38,7 +38,7 @@ class StatisticsScreen extends StatelessWidget {
           ),
           Text(
             value,
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: iconColor ?? theme.colorScheme.primary),
           ),
         ],
       ),
@@ -324,13 +324,17 @@ class StatisticsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Leuke Feitjes', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  Text('Algemene Statistieken', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
                         children: [
+                          _buildStatItem(context, 'Totaal Verdiend:', formatCurrencyStandard(appState.totalSessionEarnings), icon: Icons.account_balance_wallet_outlined, iconColor: myColors.moneyColor),
+                          const Divider(),
+                          _buildStatItem(context, 'Vandaag Verdiend:', formatCurrencyStandard(appState.earningsToday), icon: Icons.today_outlined, iconColor: myColors.moneyColor),
+                          const Divider(),
                           _buildStatItem(context, 'Gem. Sessieduur:', _formatDurationStats(appState.averageSessionDuration), icon: Icons.timer_outlined),
                           const Divider(),
                           _buildStatItem(context, 'Gem. Verdiensten/Sessie:', formatCurrencyStandard(appState.averageEarningsPerSession), icon: Icons.paid_outlined, iconColor: myColors.moneyColor),

@@ -1,15 +1,14 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
+// import 'package:intl/intl.dart'; // Niet meer nodig als _buildHistorySection hier weg is
 import '../providers/app_state.dart';
 import 'settings_screen.dart';
 import 'tracking_screen.dart';
 import 'achievements_screen.dart';
-import 'statistics_screen.dart';
-import 'leaderboard_screen.dart';
+// import 'statistics_screen.dart'; // Verwijderd als navigatiepunt
+// import 'leaderboard_screen.dart'; // Verwijderd als navigatiepunt
 import '../utils/currency_formatter.dart';
-import '../models/session_data.dart';
 import '../models/rank.dart';
 import '../models/challenge.dart';
 import '../main.dart';
@@ -75,20 +74,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const AchievementsScreen()),
-    );
-  }
-
-  void _navigateToStatistics(BuildContext context)
-  {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const StatisticsScreen()),
-    );
-  }
-
-  void _navigateToLeaderboard(BuildContext context)
-  {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
     );
   }
 
@@ -158,10 +143,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             _buildDailyChallengeCard(context, appState),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildQuickStartCard(context, appState),
-            const SizedBox(height: 20),
-            _buildNavigationCards(context),
             const SizedBox(height: 24),
             _buildRankCard(context, appState),
             const SizedBox(height: 24),
@@ -458,57 +441,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildNavigationCards(BuildContext context) {
-    final theme = Theme.of(context);
-    Widget navItem(String title, IconData icon, VoidCallback onTap) {
-      return Expanded(
-        child: Card(
-          clipBehavior: Clip.antiAlias,
-          elevation: 3,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: InkWell(
-            onTap: onTap,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.surface,
-                    theme.colorScheme.surface.withAlpha(200),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 8.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(icon, color: theme.colorScheme.primary, size: 36),
-                    const SizedBox(height: 10),
-                    Text(title, style: theme.textTheme.bodyLarge, textAlign: TextAlign.center),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        children: [
-          navItem('Statistieken', Icons.insights_rounded, () => _navigateToStatistics(context)),
-          const SizedBox(width: 16),
-          navItem('Leaderboard', Icons.leaderboard_rounded, () => _navigateToLeaderboard(context)),
-        ],
       ),
     );
   }
