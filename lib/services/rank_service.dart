@@ -5,11 +5,13 @@ import '../models/rank.dart';
 class RankService
 {
   static final List<Rank> ranks = [
-    const Rank(name: 'WC Groentje', minEarnings: 0, maxEarnings: 5, emoji: '🌱', color: Colors.lightGreen),
-    const Rank(name: 'Porselein Piraat', minEarnings: 5, maxEarnings: 15, emoji: '🏴‍☠️', color: Colors.blueGrey),
-    const Rank(name: 'Kleine Boodschapper', minEarnings: 15, maxEarnings: 35, emoji: '✉️', color: Colors.lightBlue),
-    const Rank(name: 'Grote Boodschapper', minEarnings: 35, maxEarnings: 75, emoji: '📬', color: Colors.orange),
-    const Rank(name: 'Troon Meester', minEarnings: 75, emoji: '👑', color: Colors.amber),
+    const Rank(name: 'WC Groentje', minEarnings: 0, maxEarnings: 7.5, emoji: '🌱', color: Colors.lightGreen),
+    const Rank(name: 'Porselein Piraat', minEarnings: 7.5, maxEarnings: 25, emoji: '🏴‍☠️', color: Colors.blueGrey),
+    const Rank(name: 'Kleine Boodschapper', minEarnings: 25, maxEarnings: 75, emoji: '✉️', color: Colors.lightBlue),
+    const Rank(name: 'Grote Boodschapper', minEarnings: 75, maxEarnings: 150, emoji: '📬', color: Colors.orange),
+    const Rank(name: 'Keramiek Kapitein', minEarnings: 150, maxEarnings: 300, emoji: '🚢', color: Colors.teal),
+    const Rank(name: 'Sanitair Sensei', minEarnings: 300, maxEarnings: 500, emoji: '🧘‍♂️', color: Colors.deepPurpleAccent),
+    const Rank(name: 'Troon Meester', minEarnings: 500, emoji: '👑', color: Colors.amber),
   ];
 
   static Rank getRankForEarnings(double totalEarnings)

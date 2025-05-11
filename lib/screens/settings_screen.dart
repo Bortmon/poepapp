@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
-import 'achievements_screen.dart'; // Importeer AchievementsScreen
 
 class SettingsScreen extends StatefulWidget
 {
@@ -16,6 +15,8 @@ class SettingsScreen extends StatefulWidget
 class _SettingsScreenState extends State<SettingsScreen>
 {
   late TextEditingController _wageController;
+  late TextEditingController _nicknameController;
+  late TextEditingController _statusController; // Nieuwe controller
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -26,47 +27,92 @@ class _SettingsScreenState extends State<SettingsScreen>
     _wageController = TextEditingController(
       text: appState.hourlyWage > 0 ? appState.hourlyWage.toStringAsFixed(2).replaceAll('.', ',') : '',
     );
+    _nicknameController = TextEditingController(text: appState.userName == "Anonieme Held" ? "" : appState.userName);
+    _statusController = TextEditingController(text: appState.userStatus); // Initialiseer status
   }
 
   @override
   void dispose()
   {
     _wageController.dispose();
+    _nicknameController.dispose();
+    _statusController.dispose(); // Dispose
     super.dispose();
   }
 
-  void _saveSettings()
+  void _saveWage()
   {
-    if (_formKey.currentState!.validate())
-    {
-      final wage = double.tryParse(_wageController.text.replaceAll(',', '.'));
-      if (wage != null && wage > 0)
-      {
-        Provider.of<AppState>(context, listen: false).setHourlyWage(wage);
-        ScaffoldMessenger.of(context).showSnackBar(
+    if (_wageController.text.trim().isNotEmpty) {
+        final wage = double.tryParse(_wageController.text.replaceAll(',', '.'));
+        if (wage != null && wage > 0)
+        {
+            Provider.of<AppState>(context, listen: false).setHourlyWage(wage);
+            ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: const Text('Uurloon opgeslagen!'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                margin: const EdgeInsets.all(10),
+            ),
+            );
+        }
+        else
+        {
+            ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: const Text('Voer een geldig uurloon in.'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                margin: const EdgeInsets.all(10),
+            ),
+            );
+        }
+    } else {
+        Provider.of<AppState>(context, listen: false).setHourlyWage(0.0);
+         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Uurloon opgeslagen!'),
+            content: const Text('Uurloon verwijderd.'),
             backgroundColor: Theme.of(context).colorScheme.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             margin: const EdgeInsets.all(10),
           ),
         );
-      }
-      else if (_wageController.text.isNotEmpty)
-      {
+    }
+  }
+
+  void _saveNickname() {
+    if (_formKey.currentState!.validate()) {
+        final newName = _nicknameController.text.trim();
+        Provider.of<AppState>(context, listen: false).setUserName(newName);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Voer een geldig bedrag in.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
+            SnackBar(
+            content: const Text('Nickname opgeslagen!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             margin: const EdgeInsets.all(10),
-          ),
+            ),
         );
-      }
     }
   }
+
+  void _saveStatus() { // Nieuwe methode
+    final newStatus = _statusController.text.trim();
+    Provider.of<AppState>(context, listen: false).setUserStatus(newStatus);
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+        content: const Text('Troon Gedachten opgeslagen!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(10),
+        ),
+    );
+  }
+
 
   Future<void> _confirmAndResetData() async
   {
@@ -77,7 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         return AlertDialog(
           backgroundColor: Theme.of(context).colorScheme.surface,
           title: const Text('Reset Bevestigen'),
-          content: const Text('Weet je zeker dat je alle opgeslagen gegevens (uurloon en sessiegeschiedenis) wilt verwijderen? Dit kan niet ongedaan worden gemaakt.'),
+          content: const Text('Weet je zeker dat je alle opgeslagen gegevens (uurloon, nickname, status, sessiegeschiedenis en prestaties) wilt verwijderen? Dit reset ook je leaderboard score.'),
           actions: <Widget>[
             TextButton(
               child: const Text('Annuleren'),
@@ -103,6 +149,8 @@ class _SettingsScreenState extends State<SettingsScreen>
     {
       await Provider.of<AppState>(context, listen: false).resetAllData();
       _wageController.clear();
+      _nicknameController.clear();
+      _statusController.clear(); // Wis status veld
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Alle gegevens zijn gereset!'),
@@ -125,96 +173,98 @@ class _SettingsScreenState extends State<SettingsScreen>
         title: const Text('Instellingen'),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Text(
-                'Jouw Uurloon',
-                style: theme.textTheme.headlineSmall,
-                textAlign: TextAlign.start,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Voer hieronder in hoeveel je per uur verdient. Dit wordt gebruikt om je WC-inkomsten te berekenen.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodyMedium?.color?.withAlpha((0.7 * 255).round())
+              _buildSectionTitle(context, 'Jouw Profiel'),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nicknameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nickname',
+                  hintText: 'Bijv. Koning Kak',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
                 ),
-                textAlign: TextAlign.start,
+                style: theme.textTheme.titleMedium,
+                maxLength: 20,
+                validator: (value) {
+                    if (value != null && value.trim().isNotEmpty && value.trim().length < 3) {
+                      return 'Nickname moet minimaal 3 tekens lang zijn.';
+                    }
+                    return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _saveNickname,
+                child: const Text('Nickname Opslaan'),
               ),
               const SizedBox(height: 24),
+              TextFormField( // Troon Gedachten Veld
+                controller: _statusController,
+                decoration: const InputDecoration(
+                  labelText: 'Troon Gedachten (Status)',
+                  hintText: 'Deel je wijsheid...',
+                  prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
+                ),
+                style: theme.textTheme.titleMedium,
+                maxLength: 50, // Limiteer de lengte
+                maxLines: null, // Sta meerdere regels toe indien nodig, of zet op 1
+                keyboardType: TextInputType.multiline,
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _saveStatus,
+                child: const Text('Status Opslaan'),
+              ),
+
+
+              const SizedBox(height: 32),
+              _buildSectionTitle(context, 'Financiële Instellingen'),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _wageController,
                 decoration: const InputDecoration(
                   labelText: 'Uurloon',
                   hintText: 'bijv. 15,50',
-                  prefixText: '€ ',
+                  prefixIcon: Icon(Icons.euro_symbol_rounded),
                 ),
                 style: theme.textTheme.titleMedium,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*[\.,]?\d{0,2}')),
                 ],
-                validator: (value)
-                {
-                  if (value == null || value.isEmpty)
-                  {
-                    return null;
-                  }
-                  final n = double.tryParse(value.replaceAll(',', '.'));
-                  if (n == null || n <= 0)
-                  {
-                    return 'Voer een geldig positief bedrag in.';
-                  }
-                  return null;
-                },
               ),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: _saveSettings,
-                style: theme.elevatedButtonTheme.style?.copyWith(
-                  minimumSize: WidgetStateProperty.all(const Size(double.infinity, 50)),
-                ),
+              const SizedBox(height: 12),
+               ElevatedButton(
+                onPressed: _saveWage,
                 child: const Text('Uurloon Opslaan'),
               ),
+
               const SizedBox(height: 40),
-              const Divider(),
+              const Divider(thickness: 1),
               const SizedBox(height: 20),
-              ListTile(
-                leading: Icon(Icons.military_tech_outlined, color: theme.colorScheme.primary),
-                title: Text('Mijn Prestaties', style: theme.textTheme.titleMedium),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AchievementsScreen()));
-                },
-              ),
-              const Divider(),
-              const SizedBox(height: 20),
+              _buildSectionTitle(context, 'Gevaarlijke Zone', color: theme.colorScheme.error),
+              const SizedBox(height: 16),
               Text(
-                'Gevaarlijke Zone',
-                style: theme.textTheme.titleLarge?.copyWith(color: theme.colorScheme.error),
-                textAlign: TextAlign.start,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Hiermee wis je al je opgeslagen uurloon en sessiegeschiedenis.',
+                'Hiermee wis je al je opgeslagen uurloon, nickname, status, sessiegeschiedenis en prestaties. Je score op het leaderboard wordt ook gereset.',
                  style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodyMedium?.color?.withAlpha((0.7 * 255).round())
+                  color: theme.textTheme.bodyMedium?.color?.withAlpha(180)
                 ),
-                textAlign: TextAlign.start,
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                icon: Icon(Icons.delete_forever, color: theme.colorScheme.error),
+                icon: Icon(Icons.delete_forever_rounded, color: theme.colorScheme.error),
                 label: Text(
                   'Reset Alle Gegevens',
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  side: BorderSide(color: theme.colorScheme.error.withAlpha((0.5 * 255).round())),
+                  side: BorderSide(color: theme.colorScheme.error.withAlpha(150)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.0),
                   ),
@@ -233,6 +283,17 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title, {Color? color}) {
+    final theme = Theme.of(context);
+    return Text(
+      title,
+      style: theme.textTheme.headlineSmall?.copyWith(
+        fontWeight: FontWeight.w600,
+        color: color ?? theme.colorScheme.primary,
       ),
     );
   }

@@ -2,16 +2,20 @@
 import 'package:flutter/material.dart';
 
 enum AchievementId {
-  firstEuro,
-  tenSessions,
-  nightOwl,
-  quickStop,
-  longHaul,
-  rankGroentje,
-  rankPiraat,
-  rankKleineBoodschapper,
-  rankGroteBoodschapper,
-  rankTroonMeester
+  firstFlush,
+  rollDone,
+  nightlyNeed,
+  lightningVisit,
+  theThinker,
+  profitableWeek,
+  goldenHaul,
+  sanitarySenseiAchieved,
+  weekendWarriorWC,
+  morningRitualExpert,
+  jackpotSession,
+  theRegular,
+  theEfficient,
+  theCollector
 }
 
 class Achievement {

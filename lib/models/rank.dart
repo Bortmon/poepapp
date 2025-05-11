@@ -17,7 +17,6 @@ class Rank
     required this.color,
   });
 
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

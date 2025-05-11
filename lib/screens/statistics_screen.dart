@@ -45,18 +45,38 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildChartCard(BuildContext context, String title, Widget chartWidget) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 24.0, bottom: 8.0, left: 4.0),
+          child: Text(title, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+        ),
+        Card(
+          elevation: 3,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: chartWidget,
+          )
+        ),
+      ],
+    );
+  }
+
+
   Widget _buildLineChart(BuildContext context, AppState appState) {
     final theme = Theme.of(context);
     final myColors = MyThemeColors.of(context)!;
     List<FlSpot> spots = appState.earningsOverTimeSpots;
 
     if (spots.isEmpty) {
-      return const Center(child: Text("Nog geen data voor lijngrafiek."));
+      return const SizedBox(height: 150, child: Center(child: Text("Nog geen data.")));
     }
-    if (spots.length == 1) { // Special case for a single data point
-        spots = [FlSpot(0,0), FlSpot(1, spots[0].y)]; // Create a start and end point
+    if (spots.length == 1) {
+        spots = [FlSpot(0,0), FlSpot(1, spots[0].y)];
     }
-
 
     return AspectRatio(
       aspectRatio: 1.7,
@@ -86,9 +106,9 @@ class StatisticsScreen extends StatelessWidget {
                   reservedSize: 30,
                   interval: (spots.length / 5).clamp(1, double.infinity),
                   getTitlesWidget: (value, meta) {
-                    if (value.toInt() < appState.sessionsHistory.length && spots.length > 1) { // Check spots.length > 1
+                    if (value.toInt() < appState.sessionsHistory.length && spots.length > 1) {
                        return SideTitleWidget(axisSide: meta.axisSide, child: Text('S${value.toInt()+1}', style: theme.textTheme.bodySmall));
-                    } else if (spots.length == 1 && value.toInt() == 1) { // For single spot case
+                    } else if (spots.length == 1 && value.toInt() == 1) {
                        return SideTitleWidget(axisSide: meta.axisSide, child: Text('S1', style: theme.textTheme.bodySmall));
                     }
                     return const Text('');
@@ -100,14 +120,14 @@ class StatisticsScreen extends StatelessWidget {
                   showTitles: true,
                   reservedSize: 40,
                   getTitlesWidget: (value, meta) {
-                    return Text(formatCurrency(value).replaceAll('€', '').trim(), style: theme.textTheme.bodySmall);
+                    return Text(formatCurrencyStandard(value).replaceAll('€', '').trim(), style: theme.textTheme.bodySmall);
                   },
                 ),
               ),
             ),
             borderData: FlBorderData(show: true, border: Border.all(color: theme.dividerColor.withAlpha(80))),
             minX: 0,
-            maxX: spots.length == 1 ? 1 : spots.length.toDouble() -1, // Adjust maxX for single spot
+            maxX: spots.length == 1 ? 1 : spots.length.toDouble() -1,
             minY: 0,
             maxY: spots.map((s) => s.y).reduce((a,b) => a > b ? a : b) * 1.1,
             lineBarsData: [
@@ -133,7 +153,7 @@ class StatisticsScreen extends StatelessWidget {
     Map<String, double> dailyData = appState.earningsPerDay;
 
     if (dailyData.isEmpty) {
-      return const Center(child: Text("Nog geen data voor staafdiagram."));
+      return const SizedBox(height: 150, child: Center(child: Text("Nog geen data.")));
     }
 
     List<BarChartGroupData> barGroups = [];
@@ -156,12 +176,11 @@ class StatisticsScreen extends StatelessWidget {
           BarChartData(
             alignment: BarChartAlignment.spaceAround,
             maxY: dailyData.values.reduce((a,b) => a > b ? a : b) * 1.2,
-            barTouchData: BarTouchData( // Tooltip data hier
-              enabled: true, // Zorg dat touch interactie aan staat
+            barTouchData: BarTouchData(
+              enabled: true,
               touchTooltipData: BarTouchTooltipData(
-                // tooltipBackgroundColor: theme.colorScheme.surface, // VERWIJDER DEZE REGEL
-                tooltipRoundedRadius: 8, // Voor afgeronde hoeken van de tooltip
-                getTooltipColor: (group) => theme.colorScheme.surface.withAlpha(230), // Callback voor achtergrondkleur
+                tooltipRoundedRadius: 8,
+                getTooltipColor: (group) => theme.colorScheme.surface.withAlpha(230),
                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
                   String day = dailyData.keys.elementAt(group.x);
                   return BarTooltipItem(
@@ -169,7 +188,7 @@ class StatisticsScreen extends StatelessWidget {
                     TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 14),
                     children: <TextSpan>[
                       TextSpan(
-                        text: formatCurrency(rod.toY),
+                        text: formatCurrencyStandard(rod.toY),
                         style: TextStyle(color: myColors.moneyColor, fontSize: 12, fontWeight: FontWeight.w500),
                       ),
                     ],
@@ -198,7 +217,7 @@ class StatisticsScreen extends StatelessWidget {
                   showTitles: true,
                   reservedSize: 40,
                   getTitlesWidget: (value, meta) {
-                     return Text(formatCurrency(value).replaceAll('€', '').trim(), style: theme.textTheme.bodySmall);
+                     return Text(formatCurrencyStandard(value).replaceAll('€', '').trim(), style: theme.textTheme.bodySmall);
                   },
                 ),
               ),
@@ -218,11 +237,10 @@ class StatisticsScreen extends StatelessWidget {
   }
 
   Widget _buildPieChart(BuildContext context, AppState appState) {
-    // final theme = Theme.of(context); // AANGEPAST: Verwijderd omdat het niet gebruikt wordt
     List<PieChartSectionData> sections = appState.durationPieChartSections;
 
     if (sections.isEmpty) {
-      return const Center(child: Text("Nog geen data voor cirkeldiagram."));
+      return const SizedBox(height: 150, child: Center(child: Text("Nog geen data.")));
     }
 
     return AspectRatio(
@@ -237,7 +255,6 @@ class StatisticsScreen extends StatelessWidget {
                 sections: sections,
                 pieTouchData: PieTouchData(
                   touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                    // Hier kun je interactie toevoegen
                   },
                 ),
               ),
@@ -316,7 +333,7 @@ class StatisticsScreen extends StatelessWidget {
                         children: [
                           _buildStatItem(context, 'Gem. Sessieduur:', _formatDurationStats(appState.averageSessionDuration), icon: Icons.timer_outlined),
                           const Divider(),
-                          _buildStatItem(context, 'Gem. Verdiensten/Sessie:', formatCurrency(appState.averageEarningsPerSession), icon: Icons.paid_outlined, iconColor: myColors.moneyColor),
+                          _buildStatItem(context, 'Gem. Verdiensten/Sessie:', formatCurrencyStandard(appState.averageEarningsPerSession), icon: Icons.paid_outlined, iconColor: myColors.moneyColor),
                           const Divider(),
                           _buildStatItem(context, 'Langste Sessie:', _formatDurationStats(appState.longestSession?.duration ?? Duration.zero), icon: Icons.hourglass_bottom_outlined),
                           const Divider(),
@@ -329,18 +346,9 @@ class StatisticsScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Text('Verdiensten Over Tijd', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Card(child: Padding(padding: const EdgeInsets.all(8.0), child: _buildLineChart(context, appState))),
-                  const SizedBox(height: 24),
-                  Text('Verdiensten per Dag', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Card(child: Padding(padding: const EdgeInsets.all(8.0), child: _buildBarChart(context, appState))),
-                  const SizedBox(height: 24),
-                  Text('Sessieduur Categorieën', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Card(child: Padding(padding: const EdgeInsets.all(16.0), child: _buildPieChart(context, appState))),
+                  _buildChartCard(context, 'Verdiensten Over Tijd', _buildLineChart(context, appState)),
+                  _buildChartCard(context, 'Verdiensten per Dag', _buildBarChart(context, appState)),
+                  _buildChartCard(context, 'Sessieduur Categorieën', _buildPieChart(context, appState)),
                 ],
               ),
             ),

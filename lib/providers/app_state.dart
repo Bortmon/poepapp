@@ -1,12 +1,14 @@
 // lib/providers/app_state.dart
 import 'dart:async';
+import 'dart:math';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart'; 
-import 'package:uuid/uuid.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/session_data.dart';
 import '../models/rank.dart';
@@ -28,6 +30,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
 
   String? _currentUserId;
   String _userName = "Anonieme Held";
+  String _userStatus = "";
 
 
   double _hourlyWage = 0.0;
@@ -36,6 +39,18 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   DateTime? _sessionStartTime;
   Timer? _timer;
   List<SessionData> _sessionsHistory = [];
+
+  final List<String> _toiletTrivia = [
+    "De gemiddelde persoon brengt ongeveer 3 maanden van zijn leven door op het toilet.",
+    "Koning George II van Groot-Brittannië stierf op het toilet in 1760.",
+    "Het eerste patent voor toiletpapier werd verleend in 1891.",
+    "Er zijn meer mobiele telefoons dan toiletten in India.",
+    "De duurste wc-rol ter wereld is gemaakt van 24-karaats goud.",
+    "In Zuid-Korea is er een themapark gewijd aan toiletten.",
+    "Romeinen gebruikten een gedeelde spons op een stok als toiletpapier."
+  ];
+  String _currentTrivia = "";
+
 
   double get hourlyWage => _hourlyWage;
   bool get isTracking => _isTracking;
@@ -49,16 +64,32 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   }
   String get userName => _userName;
   String? get currentUserId => _currentUserId;
+  String get currentToiletTrivia => _currentTrivia;
+  String get userStatus => _userStatus;
 
 
   AppState()
   {
     _initializeAchievements();
     _loadInitialData().then((_) {
-      _initializeUser(); 
+      _initializeUser();
     });
+    _selectRandomTrivia();
     WidgetsBinding.instance.addObserver(this);
   }
+
+  void _selectRandomTrivia() {
+    if (_toiletTrivia.isNotEmpty) {
+      final random = Random();
+      _currentTrivia = _toiletTrivia[random.nextInt(_toiletTrivia.length)];
+    }
+  }
+
+  void refreshTrivia() {
+    _selectRandomTrivia();
+    notifyListeners();
+  }
+
 
   void _initializeAchievements() {
     _allAchievements = _achievementService.getAllAchievements();
@@ -69,7 +100,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _hourlyWage = await _storageService.getHourlyWage() ?? 0.0;
     _sessionsHistory = await _storageService.getSessions();
     List<String> storedIds = await _storageService.getUnlockedAchievementIds();
-    _unlockedAchievementIds = storedIds.map((idStr) => AchievementId.values.firstWhere((e) => e.toString() == idStr)).toList();
+    _unlockedAchievementIds = storedIds.map((idStr) => AchievementId.values.firstWhere((e) => e.toString() == idStr, orElse: () => AchievementId.firstFlush )).toList(); // Added orElse for safety
     _updateAchievementsStatus();
     _checkForNewAchievements(isInitialLoad: true);
   }
@@ -82,6 +113,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
       await prefs.setString('appUserId', _currentUserId!);
     }
     _userName = prefs.getString('userName') ?? "Anonieme Held";
+    _userStatus = prefs.getString('userStatus') ?? "";
     notifyListeners();
   }
 
@@ -89,6 +121,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _userName = name.trim().isEmpty ? "Anonieme Held" : name.trim();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userName', _userName);
+    await _updateLeaderboardEntry();
+    notifyListeners();
+  }
+
+  Future<void> setUserStatus(String status) async {
+    _userStatus = status.trim();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userStatus', _userStatus);
     await _updateLeaderboardEntry();
     notifyListeners();
   }
@@ -106,12 +146,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     List<AchievementId> newlyUnlockedIds = _achievementService.checkAchievements(this, _unlockedAchievementIds);
     if (newlyUnlockedIds.isNotEmpty) {
       for (var id in newlyUnlockedIds) {
-        _unlockedAchievementIds.add(id);
-        Achievement? unlockedAch = _allAchievements.firstWhere((ach) => ach.id == id, orElse: () => _achievementService.getAllAchievements().firstWhere((a) => a.id == id));
-        unlockedAch.isUnlocked = true;
-        unlockedAch.unlockedTimestamp = DateTime.now();
-        if (!isInitialLoad) {
-          _newlyUnlockedAchievementsBuffer.add(unlockedAch);
+        if (!_unlockedAchievementIds.contains(id)) { // Voorkom dubbel toevoegen
+            _unlockedAchievementIds.add(id);
+            Achievement? unlockedAch = _allAchievements.firstWhere((ach) => ach.id == id, orElse: () => _achievementService.getAllAchievements().firstWhere((a) => a.id == id));
+            unlockedAch.isUnlocked = true;
+            unlockedAch.unlockedTimestamp = DateTime.now();
+            if (!isInitialLoad) {
+            HapticFeedback.mediumImpact();
+            _newlyUnlockedAchievementsBuffer.add(unlockedAch);
+            }
         }
       }
       await _storageService.saveUnlockedAchievementIds(_unlockedAchievementIds.map((id) => id.toString()).toList());
@@ -123,7 +166,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   double get totalSessionEarnings
   {
     if (_sessionsHistory.isEmpty) return 0.0;
-    return _sessionsHistory.fold(0.0, (sum, session) => sum + session.earnedAmount);
+    return _sessionsHistory.fold(0.0, (total, session) => total + session.earnedAmount);
   }
 
   Rank get currentRank
@@ -207,6 +250,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
         final now = DateTime.now();
         final durationInSeconds = now.difference(_sessionStartTime!).inSeconds;
         _currentEarnings = (durationInSeconds / 3600.0) * _hourlyWage;
+        HapticFeedback.lightImpact();
         notifyListeners();
       }
       else
@@ -225,23 +269,45 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _isTracking = true;
     _sessionStartTime = DateTime.now();
     _currentEarnings = 0.0;
-
+    HapticFeedback.mediumImpact();
     _startPeriodicTimerUpdates();
     notifyListeners();
   }
 
-  Future<void> _updateLeaderboardEntry() async {
-    if (_currentUserId == null || _userName == "Anonieme Held") return;
+  void cancelCurrentSession() {
+    if (_isTracking) {
+      _timer?.cancel();
+      _isTracking = false;
+      _sessionStartTime = null;
+      _currentEarnings = 0.0;
+      HapticFeedback.heavyImpact();
+      notifyListeners();
+    }
+  }
+
+  Future<void> _updateLeaderboardEntry({bool isReset = false}) async {
+    if (_currentUserId == null) return;
 
     Rank userRank = currentRank;
+
+    List<Map<String, dynamic>> recentSessionsForFirestore = [];
+    if (!isReset && _sessionsHistory.isNotEmpty) {
+        recentSessionsForFirestore = _sessionsHistory
+            .sorted((a, b) => b.startTime.compareTo(a.startTime))
+            .take(5)
+            .map((session) => session.toJson())
+            .toList();
+    }
 
     Map<String, dynamic> leaderboardData = {
       'userId': _currentUserId,
       'userName': _userName,
-      'totalEarnings': totalSessionEarnings,
+      'totalEarnings': isReset ? 0.0 : totalSessionEarnings,
       'currentRankName': userRank.name,
       'currentRankEmoji': userRank.emoji,
       'lastUpdated': FieldValue.serverTimestamp(),
+      'recentSessions': recentSessionsForFirestore,
+      'userStatus': _userStatus,
     };
 
     try {
@@ -249,8 +315,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
           .collection('leaderboardEntries')
           .doc(_currentUserId)
           .set(leaderboardData, SetOptions(merge: true));
-    } catch (e) {
+      debugPrint("Leaderboard entry bijgewerkt (isReset: $isReset) voor $_currentUserId.");
+    } catch (e, s) {
       debugPrint("Fout bij bijwerken leaderboard: $e");
+      debugPrint("Stacktrace: $s");
     }
   }
 
@@ -266,6 +334,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
 
     if (_sessionStartTime != null)
     {
+      HapticFeedback.mediumImpact();
       final endTime = DateTime.now();
       final durationInSeconds = endTime.difference(_sessionStartTime!).inSeconds;
       final finalEarningsInSession = (durationInSeconds / 3600.0) * _hourlyWage;
@@ -281,6 +350,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
 
       Rank rankAfterSession = currentRank;
       bool didRankUp = rankAfterSession != rankBeforeSession && rankAfterSession.minEarnings > rankBeforeSession.minEarnings;
+      if (didRankUp) {
+        HapticFeedback.heavyImpact();
+      }
 
       sessionResult = SessionResult(
         sessionData: completedSessionData,
@@ -303,7 +375,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     DateTime startOfWeek = DateTime(now.year, now.month, now.day - (now.weekday - 1));
     return _sessionsHistory
         .where((session) => session.startTime.isAfter(startOfWeek) || session.startTime.isAtSameMomentAs(startOfWeek))
-        .fold(0.0, (sum, session) => sum + session.earnedAmount);
+        .fold(0.0, (total, session) => total + session.earnedAmount);
   }
 
   Future<void> resetAllData() async
@@ -321,11 +393,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _unlockedAchievementIds = [];
     _initializeAchievements();
     _newlyUnlockedAchievementsBuffer.clear();
+    _selectRandomTrivia();
 
-    final prefs = await SharedPreferences.getInstance(); 
+    final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userName');
-    _userName = "Anonieme Held"; 
-    await _updateLeaderboardEntry();
+    await prefs.remove('userStatus');
+    _userName = "Anonieme Held";
+    _userStatus = "";
+    await _updateLeaderboardEntry(isReset: true);
 
     notifyListeners();
   }
@@ -340,7 +415,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
 
   Duration get averageSessionDuration {
     if (_sessionsHistory.isEmpty) return Duration.zero;
-    int totalSeconds = _sessionsHistory.fold(0, (sum, s) => sum + s.duration.inSeconds);
+    int totalSeconds = _sessionsHistory.fold(0, (total, s) => total + s.duration.inSeconds);
     return Duration(seconds: (totalSeconds / _sessionsHistory.length).round());
   }
 
@@ -364,7 +439,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   String get mostProductiveDayOfWeek {
     if (_sessionsHistory.isEmpty) return "N.v.t.";
     var groupedByDay = groupBy(_sessionsHistory, (SessionData s) => s.startTime.weekday);
-    var summedByDay = groupedByDay.map((day, sessions) => MapEntry(day, sessions.fold(0.0, (sum, s) => sum + s.earnedAmount)));
+    var summedByDay = groupedByDay.map((day, sessions) => MapEntry(day, sessions.fold(0.0, (total, s) => total + s.earnedAmount)));
     if (summedByDay.isEmpty) return "N.v.t.";
     var mostProductive = summedByDay.entries.reduce((curr, next) => curr.value > next.value ? curr : next);
     List<String> days = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
@@ -374,7 +449,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   String get mostProductiveHourOfDay {
     if (_sessionsHistory.isEmpty) return "N.v.t.";
     var groupedByHour = groupBy(_sessionsHistory, (SessionData s) => s.startTime.hour);
-    var summedByHour = groupedByHour.map((hour, sessions) => MapEntry(hour, sessions.fold(0.0, (sum, s) => sum + s.earnedAmount)));
+    var summedByHour = groupedByHour.map((hour, sessions) => MapEntry(hour, sessions.fold(0.0, (total, s) => total + s.earnedAmount)));
     if (summedByHour.isEmpty) return "N.v.t.";
     var mostProductive = summedByHour.entries.reduce((curr, next) => curr.value > next.value ? curr : next);
     return "${mostProductive.key.toString().padLeft(2, '0')}:00 - ${ (mostProductive.key + 1).toString().padLeft(2, '0')}:00";

@@ -2,17 +2,182 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
-import '../main.dart'; 
+import '../main.dart';
+import '../models/session_data.dart';
 
 class LeaderboardScreen extends StatelessWidget {
   const LeaderboardScreen({super.key});
 
+  String _formatDurationPopup(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+    if (hours > 0) return "${hours}u ${twoDigits(minutes)}m ${twoDigits(seconds)}s";
+    if (minutes > 0) return "${twoDigits(minutes)}m ${twoDigits(seconds)}s";
+    return "${twoDigits(seconds)}s";
+  }
+
+  Future<void> _showUserDetailPopup(BuildContext context, Map<String, dynamic> userData) async {
+    final theme = Theme.of(context);
+    final myColors = MyThemeColors.of(context)!;
+
+    String name = userData['userName'] ?? 'Anoniem';
+    String rankEmoji = userData['currentRankEmoji'] ?? '❓';
+    String rankName = userData['currentRankName'] ?? 'Onbekend';
+    String userStatus = userData['userStatus'] ?? ''; // Haal status op
+    List<dynamic> rawRecentSessions = userData['recentSessions'] ?? [];
+    List<SessionData> recentSessions = rawRecentSessions
+        .map((sessionMap) => SessionData.fromJson(Map<String, dynamic>.from(sessionMap)))
+        .toList();
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+          contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          title: Row(
+            children: [
+              Text(rankEmoji, style: const TextStyle(fontSize: 28)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  name,
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text("Rang: $rankName", style: theme.textTheme.titleMedium),
+                if (userStatus.isNotEmpty) ...[ // Toon status als deze bestaat
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.comment_outlined, size: 16, color: theme.iconTheme.color?.withAlpha(150)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '"$userStatus"',
+                          style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: theme.textTheme.bodyMedium?.color?.withAlpha(200)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Text("Recente Sessies:", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                if (recentSessions.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text("Nog geen recente sessies beschikbaar.", style: TextStyle(fontStyle: FontStyle.italic)),
+                  )
+                else
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: recentSessions.map((session) {
+                      String durationText = _formatDurationPopup(session.duration);
+                      if (session.duration.inSeconds == 0 && session.duration.inMilliseconds > 0) {
+                        durationText = "<1s";
+                      } else if (session.duration.inSeconds == 0) {
+                        durationText = "0s";
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                DateFormat('dd-MM HH:mm', 'nl_NL').format(session.startTime),
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                durationText,
+                                style: theme.textTheme.bodySmall,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                formatCurrencyStandard(session.earnedAmount),
+                                style: theme.textTheme.bodySmall?.copyWith(color: myColors.moneyColor),
+                                textAlign: TextAlign.end,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Sluiten'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+  Widget _buildRankIndicator(BuildContext context, int rank, bool isCurrentUser) {
+    final theme = Theme.of(context);
+    Color rankColor = theme.textTheme.titleLarge?.color ?? theme.colorScheme.onSurface;
+    String prefix = '';
+
+    if (isCurrentUser) {
+      rankColor = theme.colorScheme.primary;
+    }
+
+    if (rank == 1) {
+      prefix = '👑 ';
+      if (!isCurrentUser) rankColor = Colors.amber[600]!;
+    } else if (rank == 2) {
+      if (!isCurrentUser) rankColor = Colors.grey[400]!;
+    } else if (rank == 3) {
+      if (!isCurrentUser) rankColor = Colors.brown[300]!;
+    }
+
+    return Text(
+      '$prefix$rank.',
+      style: theme.textTheme.titleLarge?.copyWith(
+        fontWeight: rank <= 3 ? FontWeight.bold : FontWeight.normal,
+        color: rankColor,
+        fontSize: (theme.textTheme.titleLarge?.fontSize ?? 20) * (rank == 1 ? 1.0 : 0.95),
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final String? currentUserId = Provider.of<AppState>(context, listen: false).currentUserId; 
+    final String? currentUserId = Provider.of<AppState>(context, listen: false).currentUserId;
 
     return Scaffold(
       appBar: AppBar(
@@ -37,7 +202,8 @@ class LeaderboardScreen extends StatelessWidget {
 
           final docs = snapshot.data!.docs;
 
-          return ListView.builder(
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
             itemCount: docs.length,
             itemBuilder: (context, index) {
               var data = docs[index].data() as Map<String, dynamic>;
@@ -48,34 +214,91 @@ class LeaderboardScreen extends StatelessWidget {
               String entryUserId = data['userId'] ?? '';
 
               bool isCurrentUser = currentUserId != null && entryUserId == currentUserId;
+              int displayRank = index + 1;
+
+              List<BoxShadow>? cardShadows;
+              Color? cardBorderColor;
+              double cardBorderWidth = 0;
+
+              if (displayRank == 1) {
+                cardBorderColor = Colors.amber[700];
+                cardBorderWidth = 2.0;
+                cardShadows = [
+                  BoxShadow(
+                    color: Colors.amber.withAlpha(80),
+                    blurRadius: 12.0,
+                    spreadRadius: 1.0,
+                  ),
+                ];
+              } else if (displayRank == 2) {
+                cardBorderColor = Colors.grey[500];
+                cardBorderWidth = 1.5;
+                cardShadows = [
+                  BoxShadow(
+                    color: Colors.grey.withAlpha(60),
+                    blurRadius: 8.0,
+                    spreadRadius: 0.5,
+                  ),
+                ];
+              } else if (displayRank == 3) {
+                cardBorderColor = Colors.brown[400];
+                cardBorderWidth = 1.5;
+                cardShadows = [
+                  BoxShadow(
+                    color: Colors.brown.withAlpha(50),
+                    blurRadius: 6.0,
+                  ),
+                ];
+              }
+              if (isCurrentUser && cardBorderColor == null) {
+                  cardBorderColor = theme.colorScheme.primary;
+                  cardBorderWidth = 1.5;
+              }
 
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                color: isCurrentUser ? theme.colorScheme.primary.withAlpha(50) : theme.cardTheme.color,
-                elevation: isCurrentUser ? 6 : 2,
-                child: ListTile(
-                  leading: Text(
-                    '${index + 1}.',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isCurrentUser ? theme.colorScheme.primary : theme.textTheme.titleLarge?.color,
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: cardBorderColor != null
+                      ? BorderSide(color: cardBorderColor, width: cardBorderWidth)
+                      : (isCurrentUser ? BorderSide(color: theme.colorScheme.primary, width: 1.5) : BorderSide.none),
+                ),
+                child: InkWell(
+                  onTap: () {
+                    _showUserDetailPopup(context, data);
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isCurrentUser ? theme.colorScheme.primary.withAlpha(40) : theme.cardTheme.color,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: cardShadows,
                     ),
-                  ),
-                  title: Text(
-                    '$rankEmoji $name',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text('Rang: $rankName'),
-                  trailing: Text(
-                    formatCurrency(earnings),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).extension<MyThemeColors>()!.moneyColor,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      leading: _buildRankIndicator(context, displayRank, isCurrentUser),
+                      title: Text(
+                        '$rankEmoji $name',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isCurrentUser ? theme.colorScheme.primary : theme.textTheme.titleMedium?.color
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text('Rang: $rankName', style: theme.textTheme.bodySmall),
+                      trailing: Text(
+                        formatCurrencyStandard(earnings),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).extension<MyThemeColors>()!.moneyColor,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               );
             },
+            separatorBuilder: (context, index) => const SizedBox(height: 4),
           );
         },
       ),

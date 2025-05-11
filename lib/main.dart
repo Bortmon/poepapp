@@ -23,7 +23,7 @@ void main() async
   runApp(
     ChangeNotifierProvider(
       create: (context) => AppState(),
-      child: MyApp(hasNickname: hasNickname), // Geef status door
+      child: MyApp(hasNickname: hasNickname), 
     ),
   );
 }

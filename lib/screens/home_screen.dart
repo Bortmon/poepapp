@@ -7,15 +7,62 @@ import 'settings_screen.dart';
 import 'tracking_screen.dart';
 import 'achievements_screen.dart';
 import 'statistics_screen.dart';
-import 'leaderboard_screen.dart'; 
+import 'leaderboard_screen.dart';
 import '../utils/currency_formatter.dart';
 import '../models/session_data.dart';
 import '../models/rank.dart';
 import '../main.dart';
 
-class HomeScreen extends StatelessWidget
-{
+class HomeScreen extends StatefulWidget { // Verander naar StatefulWidget voor Trivia animatie
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _triviaAnimationController;
+  late Animation<double> _triviaFadeAnimation;
+  String _displayedTrivia = "";
+  Key _triviaKey = UniqueKey(); // Om de widget te forceren opnieuw te bouwen
+
+  @override
+  void initState() {
+    super.initState();
+    _triviaAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _triviaFadeAnimation = CurvedAnimation(
+      parent: _triviaAnimationController,
+      curve: Curves.easeInOut,
+    );
+
+    // Initialiseer trivia direct
+    final appState = Provider.of<AppState>(context, listen: false);
+    _displayedTrivia = appState.currentToiletTrivia;
+    if (_displayedTrivia.isNotEmpty) {
+      _triviaAnimationController.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _triviaAnimationController.dispose();
+    super.dispose();
+  }
+
+  void _refreshTriviaUI(AppState appState) {
+    _triviaAnimationController.reverse().then((_) {
+      appState.refreshTrivia(); // Ververs de data in AppState
+      setState(() {
+        _displayedTrivia = appState.currentToiletTrivia; // Update lokale state voor animatie
+        _triviaKey = UniqueKey(); // Forceer rebuild van de Text widget
+      });
+      _triviaAnimationController.forward();
+    });
+  }
+
 
   void _navigateToSettings(BuildContext context)
   {
@@ -45,8 +92,7 @@ class HomeScreen extends StatelessWidget
     );
   }
 
-
-  void _startTracking(BuildContext context, AppState appState)
+  void _startSession(BuildContext context, AppState appState, {bool quickStart = false})
   {
     if (appState.hourlyWage <= 0)
     {
@@ -59,10 +105,7 @@ class HomeScreen extends StatelessWidget
           actions: <Widget>[
             TextButton(
               child: const Text('Annuleren'),
-              onPressed: ()
-              {
-                Navigator.of(ctx).pop();
-              },
+              onPressed: () => Navigator.of(ctx).pop(),
             ),
             TextButton(
               child: const Text('Naar Instellingen'),
@@ -89,7 +132,15 @@ class HomeScreen extends StatelessWidget
   Widget build(BuildContext context)
   {
     final theme = Theme.of(context);
-    final myColors = MyThemeColors.of(context)!;
+    final appState = Provider.of<AppState>(context); // listen: true hier is ok voor trivia update
+
+    // Update displayedTrivia als het verandert in AppState en de animatie niet loopt
+    // Dit is voor de allereerste keer laden als de initState trivia nog leeg was.
+    if (_displayedTrivia.isEmpty && appState.currentToiletTrivia.isNotEmpty && !_triviaAnimationController.isAnimating) {
+        _displayedTrivia = appState.currentToiletTrivia;
+        _triviaAnimationController.forward();
+    }
+
 
     return Scaffold(
       appBar: AppBar(
@@ -102,208 +153,121 @@ class HomeScreen extends StatelessWidget
           ),
         ],
       ),
-      body: Consumer<AppState>(
-        builder: (context, appState, child)
-        {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _buildRankSection(context, appState),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(24.0),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(20.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha((0.2 * 255).round()),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      )
-                    ]
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.monetization_on_outlined,
-                        size: 80,
-                        color: myColors.moneyColor,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Klaar voor je volgende sessie?',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: theme.textTheme.bodyLarge?.color?.withAlpha((0.9 * 255).round())
-                        ),
-                      ),
-                    ],
-                  )
-                ),
-                const SizedBox(height: 30),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.play_circle_fill_outlined, size: 28),
-                  label: const Text('Start Sessie'),
-                  style: theme.elevatedButtonTheme.style?.copyWith(
-                    padding: WidgetStateProperty.all(
-                      const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
-                    ),
-                    textStyle: WidgetStateProperty.all(
-                      theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onPrimary,
-                      )
-                    )
-                  ),
-                  onPressed: () => _startTracking(context, appState),
-                ),
-                const SizedBox(height: 40),
-                _buildStatsCard(context, appState, myColors),
-                const SizedBox(height: 20),
-                if (appState.sessionsHistory.isNotEmpty)
-                  _buildHistorySection(context, appState, myColors),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _buildRankCard(context, appState),
+            const SizedBox(height: 24),
+            _buildQuickStartCard(context, appState),
+            const SizedBox(height: 24),
+            _buildToiletTriviaCard(context, appState),
+            const SizedBox(height: 24), // Consistentere spacing
+            _buildNavigationCards(context),
 
-                const SizedBox(height: 24),
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () => _navigateToStatistics(context),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.insights_rounded, color: theme.colorScheme.primary, size: 28),
-                              const SizedBox(width: 12),
-                              Text('Bekijk Statistieken', style: theme.textTheme.titleMedium),
-                            ],
+            if (appState.hourlyWage <= 0 && !appState.isTracking && appState.sessionsHistory.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 24.0),
+                child: Card(
+                  color: theme.colorScheme.primary.withAlpha((0.1 * 255).round()),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: theme.colorScheme.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            "Stel je uurloon in via de instellingen (rechtsboven) om te beginnen!",
+                            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
                           ),
-                          Icon(Icons.chevron_right_rounded, color: theme.iconTheme.color?.withAlpha(150)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12), 
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () => _navigateToLeaderboard(context), 
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.leaderboard_rounded, color: theme.colorScheme.primary, size: 28),
-                              const SizedBox(width: 12),
-                              Text('Leaderboard', style: theme.textTheme.titleMedium),
-                            ],
-                          ),
-                          Icon(Icons.chevron_right_rounded, color: theme.iconTheme.color?.withAlpha(150)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                if (appState.hourlyWage <= 0 && !appState.isTracking && appState.sessionsHistory.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 20.0),
-                    child: Card(
-                      color: theme.colorScheme.primary.withAlpha((0.1 * 255).round()),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: theme.colorScheme.primary),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                "Stel je uurloon in via de instellingen (rechtsboven) om te beginnen!",
-                                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
-                              ),
-                            ),
-                          ],
                         ),
-                      ),
+                      ],
                     ),
                   ),
-              ],
-            ),
-          );
-        },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildRankSection(BuildContext context, AppState appState)
-  {
+  Widget _buildRankCard(BuildContext context, AppState appState) {
     final theme = Theme.of(context);
     final Rank currentRank = appState.currentRank;
     final Rank? nextRank = appState.nextRank;
     final double progress = appState.progressToNextRank;
     final double needed = appState.earningsNeededForNextRank;
 
+    Color onRankColor = theme.colorScheme.onSurface.withOpacity(0.95); // Iets minder opacity voor betere leesbaarheid
+    if (currentRank.color.computeLuminance() < 0.45) { // Drempel iets lager voor donkere kleuren
+        onRankColor = Colors.white.withOpacity(0.95);
+    }
+
     return Card(
-      elevation: 4,
-      color: currentRank.color.withAlpha(50),
+      elevation: 6,
+      color: currentRank.color.withAlpha(70), // Iets meer kleur in achtergrond
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _navigateToAchievements(context),
-        splashColor: currentRank.color.withAlpha(100),
-        highlightColor: currentRank.color.withAlpha(70),
+        splashColor: currentRank.color.withAlpha(120),
+        highlightColor: currentRank.color.withAlpha(90),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${currentRank.emoji} ${currentRank.name}',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: currentRank.color,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  Icon(Icons.touch_app_outlined, size: 20, color: currentRank.color.withAlpha(150)),
-                ],
+              Text(
+                currentRank.emoji,
+                style: TextStyle(fontSize: 38, color: currentRank.color), // Emoji in volle rangkleur
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
+              Text(
+                currentRank.name,
+                style: theme.textTheme.headlineMedium?.copyWith( // Groter lettertype
+                  fontWeight: FontWeight.bold,
+                  color: currentRank.color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
               LinearProgressIndicator(
                 value: progress,
-                backgroundColor: theme.colorScheme.surface.withAlpha(150),
+                backgroundColor: theme.colorScheme.surface.withAlpha(200),
                 valueColor: AlwaysStoppedAnimation<Color>(currentRank.color),
-                minHeight: 10,
-                borderRadius: BorderRadius.circular(5),
+                minHeight: 14,
+                borderRadius: BorderRadius.circular(7),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               if (nextRank != null)
                 Text(
                   'Nog € ${needed.toStringAsFixed(2)} tot ${nextRank.name} ${nextRank.emoji}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.textTheme.bodyMedium?.color?.withAlpha(200)
+                  style: theme.textTheme.bodyLarge?.copyWith( // Iets groter
+                    color: onRankColor,
+                    fontWeight: FontWeight.w500,
                   ),
+                  textAlign: TextAlign.center,
                 )
               else
                 Text(
                   'Hoogste rang bereikt! Gefeliciteerd!',
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodyLarge?.copyWith( // Iets groter
                     color: currentRank.color,
                     fontWeight: FontWeight.w500,
                   ),
+                  textAlign: TextAlign.center,
                 ),
+              const SizedBox(height: 8),
+              Text(
+                '(Tik voor prestaties & rang details)',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: onRankColor.withOpacity(0.75),
+                ),
+                textAlign: TextAlign.center,
+              )
             ],
           ),
         ),
@@ -311,34 +275,48 @@ class HomeScreen extends StatelessWidget
     );
   }
 
-
-  Widget _buildStatsCard(BuildContext context, AppState appState, MyThemeColors myColors)
-  {
+  Widget _buildQuickStartCard(BuildContext context, AppState appState) {
     final theme = Theme.of(context);
     return Card(
       elevation: 4,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Icon(
+              Icons.rocket_launch_outlined,
+              size: 48,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(height: 12),
             Text(
-              'Jouw Verdiensten',
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              'Klaar voor een snelle sessie?',
+              style: theme.textTheme.titleLarge,
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            _buildStatRow(
-              context,
-              label: 'Deze week:',
-              value: formatCurrency(appState.weeklyEarnings),
-              valueColor: myColors.moneyColor,
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.play_arrow_rounded, size: 28),
+              label: const Text('Snel Starten'),
+              style: theme.elevatedButtonTheme.style?.copyWith(
+                padding: WidgetStateProperty.all(
+                  const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                ),
+                textStyle: WidgetStateProperty.all(
+                  theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
+                )
+              ),
+              onPressed: () => _startSession(context, appState, quickStart: true),
             ),
-            const SizedBox(height: 8),
-            _buildStatRow(
-              context,
-              label: 'Totaal:',
-              value: formatCurrency(appState.totalSessionEarnings),
-              valueColor: myColors.moneyColor,
+            const SizedBox(height: 12),
+            OutlinedButton( // Veranderd naar OutlinedButton
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: theme.colorScheme.primary.withAlpha(150)),
+                foregroundColor: theme.colorScheme.primary,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              ),
+              child: const Text('Sessie aanpassen / Uurloon checken'),
+              onPressed: () => _startSession(context, appState, quickStart: false),
             ),
           ],
         ),
@@ -346,95 +324,95 @@ class HomeScreen extends StatelessWidget
     );
   }
 
-  Widget _buildStatRow(BuildContext context, {required String label, required String value, Color? valueColor})
-  {
+  Widget _buildToiletTriviaCard(BuildContext context, AppState appState) {
     final theme = Theme.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: theme.textTheme.titleMedium),
-        Text(
-          value,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: valueColor ?? theme.colorScheme.primary,
-          ),
+    return Card(
+      elevation: 2,
+      color: theme.colorScheme.surface.withAlpha(200),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '🚽 Toilet Trivia',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  onPressed: () => _refreshTriviaUI(appState), // Gebruik de nieuwe methode
+                  tooltip: 'Nieuwe trivia',
+                  visualDensity: VisualDensity.compact,
+                )
+              ],
+            ),
+            const SizedBox(height: 8),
+            FadeTransition( // Animatie voor de tekst
+              key: _triviaKey, // Key om rebuild te forceren
+              opacity: _triviaFadeAnimation,
+              child: Text(
+                _displayedTrivia.isNotEmpty ? _displayedTrivia : "Even geduld voor een wijs weetje...",
+                style: theme.textTheme.bodyMedium,
+                textAlign: TextAlign.start,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildHistorySection(BuildContext context, AppState appState, MyThemeColors myColors)
-  {
+  Widget _buildNavigationCards(BuildContext context) {
     final theme = Theme.of(context);
-    List<SessionData> sortedSessions = List.from(appState.sessionsHistory);
-    sortedSessions.sort((a, b) => b.startTime.compareTo(a.startTime));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4.0, bottom: 8.0, top: 16.0),
-          child: Text(
-            'Recente Sessies',
-            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-        ),
-        Card(
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: DataTable(
-              columnSpacing: 16.0,
-              headingRowHeight: 40,
-              dataRowMinHeight: 48,
-              dataRowMaxHeight: 56,
-              headingTextStyle: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.textTheme.bodyLarge?.color?.withAlpha((0.7 * 255).round()),
-              ),
-              dataTextStyle: theme.textTheme.bodyMedium,
-              columns: const [
-                DataColumn(label: Text('Datum')),
-                DataColumn(label: Text('Duur'), numeric: true),
-                DataColumn(label: Text('Verdiend'), numeric: true),
-              ],
-              rows: sortedSessions.take(5).map((session)
-              {
-                return DataRow(
-                  cells: [
-                    DataCell(Text(DateFormat('dd-MM HH:mm', 'nl_NL').format(session.startTime))),
-                    DataCell(Text(_formatDuration(session.duration))),
-                    DataCell(Text(
-                      formatCurrency(session.earnedAmount),
-                      style: TextStyle(color: myColors.moneyColor, fontWeight: FontWeight.w500),
-                    )),
+    Widget navItem(String title, IconData icon, VoidCallback onTap) {
+      return Expanded(
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: InkWell(
+            onTap: onTap,
+            child: Container( // Container voor gradient
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.surface,
+                    theme.colorScheme.surface.withAlpha(200),
                   ],
-                );
-              }).toList(),
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 8.0), // Meer verticale padding
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, color: theme.colorScheme.primary, size: 36), // Iets groter icoon
+                    const SizedBox(height: 10),
+                    Text(title, style: theme.textTheme.bodyLarge, textAlign: TextAlign.center), // Iets grotere tekst
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-      ],
-    );
-  }
+      );
+    }
 
-  String _formatDuration(Duration duration)
-  {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    if (duration.inHours > 0)
-    {
-      return "${twoDigits(duration.inHours)}u ${twoDigitMinutes}m";
-    }
-    else if (duration.inMinutes > 0)
-    {
-      return "${twoDigitMinutes}m ${twoDigitSeconds}s";
-    }
-    else
-    {
-      return "${twoDigitSeconds}s";
-    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 16.0),
+      child: Row(
+        children: [
+          navItem('Statistieken', Icons.insights_rounded, () => _navigateToStatistics(context)),
+          const SizedBox(width: 16), // Iets meer ruimte
+          navItem('Leaderboard', Icons.leaderboard_rounded, () => _navigateToLeaderboard(context)),
+        ],
+      ),
+    );
   }
 }
