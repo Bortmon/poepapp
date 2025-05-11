@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'providers/app_state.dart';
 import 'screens/home_screen.dart';
-import 'screens/nickname_setup_screen.dart'; 
+import 'screens/nickname_setup_screen.dart';
 
 void main() async
 {
@@ -23,7 +23,7 @@ void main() async
   runApp(
     ChangeNotifierProvider(
       create: (context) => AppState(),
-      child: MyApp(hasNickname: hasNickname), 
+      child: MyApp(hasNickname: hasNickname),
     ),
   );
 }
@@ -71,45 +71,44 @@ class MyApp extends StatelessWidget
   @override
   Widget build(BuildContext context)
   {
-    const Color primaryColor = Color(0xFF8A3FFC);
+    const Color seedColor = Color(0xFF8A3FFC);
     const Color cardBackgroundColor = Color(0xFF1E1E1E);
-    const Color textColor = Color(0xFFE0E0E0);
+    const Color scaffoldBackgroundColor = Color(0xFF121212);
+    const Color textColorOnDark = Color(0xFFE0E0E0);
     const Color moneyGreen = Color(0xFF00C853);
-    const Color scaffoldBgColor = Color(0xFF121212);
+
+    ColorScheme darkColorScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: Brightness.dark,
+      background: scaffoldBackgroundColor,
+      surface: cardBackgroundColor,
+      onBackground: textColorOnDark,
+      onSurface: textColorOnDark,
+      primary: seedColor,
+    );
 
     return MaterialApp(
       title: 'WC Geld Tracker',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        primaryColor: primaryColor,
-        scaffoldBackgroundColor: scaffoldBgColor,
-        colorScheme: const ColorScheme.dark(
-          primary: primaryColor,
-          secondary: primaryColor,
-          surface: cardBackgroundColor,
-          background: scaffoldBgColor,
-          error: Colors.redAccent,
-          onPrimary: Colors.white,
-          onSecondary: Colors.white,
-          onSurface: textColor,
-          onBackground: textColor,
-          onError: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: cardBackgroundColor,
+        colorScheme: darkColorScheme,
+        scaffoldBackgroundColor: darkColorScheme.background,
+        primaryColor: darkColorScheme.primary,
+
+        appBarTheme: AppBarTheme(
+          backgroundColor: darkColorScheme.surface,
           elevation: 0,
           titleTextStyle: TextStyle(
-            color: textColor,
+            color: darkColorScheme.onSurface,
             fontSize: 20,
             fontWeight: FontWeight.w500,
           ),
-          iconTheme: IconThemeData(color: primaryColor),
+          iconTheme: IconThemeData(color: darkColorScheme.primary),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor,
-            foregroundColor: Colors.white,
+            backgroundColor: darkColorScheme.primary,
+            foregroundColor: darkColorScheme.onPrimary,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             shape: RoundedRectangleBorder(
@@ -119,51 +118,52 @@ class MyApp extends StatelessWidget
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            foregroundColor: primaryColor,
+            foregroundColor: darkColorScheme.primary,
             textStyle: const TextStyle(fontWeight: FontWeight.w600),
           )
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: cardBackgroundColor.withAlpha((0.5 * 255).round()),
+          fillColor: darkColorScheme.surface.withAlpha((0.7 * 255).round()),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
-            borderSide: const BorderSide(color: primaryColor, width: 2),
+            borderSide: BorderSide(color: darkColorScheme.primary, width: 2),
           ),
-          labelStyle: TextStyle(color: textColor.withAlpha((0.7 * 255).round())),
-          hintStyle: TextStyle(color: textColor.withAlpha((0.5 * 255).round())),
+          labelStyle: TextStyle(color: darkColorScheme.onSurface.withAlpha((0.7 * 255).round())),
+          hintStyle: TextStyle(color: darkColorScheme.onSurface.withAlpha((0.5 * 255).round())),
         ),
         cardTheme: CardTheme(
           elevation: 2,
-          color: cardBackgroundColor,
+          color: darkColorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16.0),
           ),
           margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
         ),
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-          displayMedium: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-          displaySmall: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-          headlineLarge: TextStyle(color: textColor, fontWeight: FontWeight.w600),
-          headlineMedium: TextStyle(color: textColor, fontWeight: FontWeight.w600),
-          headlineSmall: TextStyle(color: textColor, fontWeight: FontWeight.w600),
-          titleLarge: TextStyle(color: textColor, fontWeight: FontWeight.w500),
-          titleMedium: TextStyle(color: textColor, fontWeight: FontWeight.w500),
-          titleSmall: TextStyle(color: textColor, fontWeight: FontWeight.w500),
-          bodyLarge: TextStyle(color: Color(0xE6E0E0E0)),
-          bodyMedium: TextStyle(color: Color(0xCCE0E0E0)),
-          labelLarge: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+        textTheme: TextTheme(
+          displayLarge: TextStyle(color: darkColorScheme.onSurface, fontWeight: FontWeight.bold),
+          displayMedium: TextStyle(color: darkColorScheme.onSurface, fontWeight: FontWeight.bold),
+          displaySmall: TextStyle(color: darkColorScheme.onSurface, fontWeight: FontWeight.bold),
+          headlineLarge: TextStyle(color: darkColorScheme.onSurface, fontWeight: FontWeight.w600),
+          headlineMedium: TextStyle(color: darkColorScheme.onSurface, fontWeight: FontWeight.w600),
+          headlineSmall: TextStyle(color: darkColorScheme.onSurface, fontWeight: FontWeight.w600),
+          titleLarge: TextStyle(color: darkColorScheme.onSurface, fontWeight: FontWeight.w500),
+          titleMedium: TextStyle(color: darkColorScheme.onSurface, fontWeight: FontWeight.w500),
+          titleSmall: TextStyle(color: darkColorScheme.onSurface, fontWeight: FontWeight.w500),
+          bodyLarge: TextStyle(color: darkColorScheme.onSurface.withAlpha((0.9 * 255).round())),
+          bodyMedium: TextStyle(color: darkColorScheme.onSurface.withAlpha((0.8 * 255).round())),
+          bodySmall: TextStyle(color: darkColorScheme.onSurface.withAlpha((0.7 * 255).round())),
+          labelLarge: TextStyle(color: darkColorScheme.primary, fontWeight: FontWeight.bold),
         ),
         iconTheme: IconThemeData(
-          color: textColor.withAlpha((0.8 * 255).round()),
+          color: darkColorScheme.onSurface.withAlpha((0.8 * 255).round()),
         ),
         dividerTheme: DividerThemeData(
-          color: textColor.withAlpha((0.2 * 255).round()),
+          color: darkColorScheme.onSurface.withAlpha((0.2 * 255).round()),
           thickness: 1,
         ),
         extensions: const <ThemeExtension<dynamic>>[

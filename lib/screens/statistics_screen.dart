@@ -75,7 +75,7 @@ class StatisticsScreen extends StatelessWidget {
       return const SizedBox(height: 150, child: Center(child: Text("Nog geen data.")));
     }
     if (spots.length == 1) {
-        spots = [FlSpot(0,0), FlSpot(1, spots[0].y)];
+        spots = [const FlSpot(0,0), FlSpot(1, spots[0].y)];
     }
 
     return AspectRatio(

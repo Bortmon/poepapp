@@ -13,9 +13,12 @@ enum AchievementId {
   weekendWarriorWC,
   morningRitualExpert,
   jackpotSession,
+  theCollector,
+  centurion,
+  marathonMan,
+  highRoller,
   theRegular,
-  theEfficient,
-  theCollector
+  theEfficient
 }
 
 class Achievement {

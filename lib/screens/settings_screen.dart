@@ -2,7 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart'; 
 import '../providers/app_state.dart';
+import '../models/session_data.dart'; 
+import '../utils/currency_formatter.dart'; 
 
 class SettingsScreen extends StatefulWidget
 {
@@ -16,7 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 {
   late TextEditingController _wageController;
   late TextEditingController _nicknameController;
-  late TextEditingController _statusController; // Nieuwe controller
+  late TextEditingController _statusController;
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -28,7 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       text: appState.hourlyWage > 0 ? appState.hourlyWage.toStringAsFixed(2).replaceAll('.', ',') : '',
     );
     _nicknameController = TextEditingController(text: appState.userName == "Anonieme Held" ? "" : appState.userName);
-    _statusController = TextEditingController(text: appState.userStatus); // Initialiseer status
+    _statusController = TextEditingController(text: appState.userStatus);
   }
 
   @override
@@ -36,7 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   {
     _wageController.dispose();
     _nicknameController.dispose();
-    _statusController.dispose(); // Dispose
+    _statusController.dispose();
     super.dispose();
   }
 
@@ -99,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
-  void _saveStatus() { // Nieuwe methode
+  void _saveStatus() {
     final newStatus = _statusController.text.trim();
     Provider.of<AppState>(context, listen: false).setUserStatus(newStatus);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -111,6 +114,37 @@ class _SettingsScreenState extends State<SettingsScreen>
         margin: const EdgeInsets.all(10),
         ),
     );
+  }
+
+
+  Future<void> _confirmAndDeleteSession(BuildContext context, AppState appState, SessionData session) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Sessie Verwijderen?'),
+          content: Text('Weet je zeker dat je de sessie van ${DateFormat('dd-MM-yyyy HH:mm').format(session.startTime)} wilt verwijderen? Dit beïnvloedt je totalen, rang en prestaties.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Annuleren'),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+              child: const Text('Verwijderen'),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true && mounted) {
+      await appState.deleteSession(session);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sessie verwijderd!')),
+      );
+    }
   }
 
 
@@ -150,7 +184,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       await Provider.of<AppState>(context, listen: false).resetAllData();
       _wageController.clear();
       _nicknameController.clear();
-      _statusController.clear(); // Wis status veld
+      _statusController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Alle gegevens zijn gereset!'),
@@ -168,6 +202,12 @@ class _SettingsScreenState extends State<SettingsScreen>
   Widget build(BuildContext context)
   {
     final theme = Theme.of(context);
+    final appState = Provider.of<AppState>(context); 
+
+    List<SessionData> sortedSessions = List.from(appState.sessionsHistory);
+    sortedSessions.sort((a, b) => b.startTime.compareTo(a.startTime));
+
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Instellingen'),
@@ -203,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 child: const Text('Nickname Opslaan'),
               ),
               const SizedBox(height: 24),
-              TextFormField( // Troon Gedachten Veld
+              TextFormField(
                 controller: _statusController,
                 decoration: const InputDecoration(
                   labelText: 'Troon Gedachten (Status)',
@@ -211,8 +251,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                   prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
                 ),
                 style: theme.textTheme.titleMedium,
-                maxLength: 50, // Limiteer de lengte
-                maxLines: null, // Sta meerdere regels toe indien nodig, of zet op 1
+                maxLength: 50,
+                maxLines: null,
                 keyboardType: TextInputType.multiline,
               ),
               const SizedBox(height: 12),
@@ -243,6 +283,42 @@ class _SettingsScreenState extends State<SettingsScreen>
                 onPressed: _saveWage,
                 child: const Text('Uurloon Opslaan'),
               ),
+
+              const SizedBox(height: 32),
+              _buildSectionTitle(context, 'Sessiebeheer'),
+              const SizedBox(height: 8),
+              if (sortedSessions.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Text("Nog geen sessies om te beheren.", style: TextStyle(fontStyle: FontStyle.italic)),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: sortedSessions.length > 5 ? 5 : sortedSessions.length, // Toon max 5 of alle
+                  itemBuilder: (context, index) {
+                    final session = sortedSessions[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: ListTile(
+                        title: Text(DateFormat('dd-MM-yyyy HH:mm').format(session.startTime)),
+                        subtitle: Text('Duur: ${_formatDurationSettings(session.duration)} - Verdiend: ${formatCurrencyStandard(session.earnedAmount)}'),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                          onPressed: () => _confirmAndDeleteSession(context, appState, session),
+                          tooltip: 'Verwijder sessie',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              if (sortedSessions.length > 5)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text("Toont de 5 meest recente sessies. Meer beheer via een toekomstig paneel.", style: theme.textTheme.bodySmall),
+                ),
+
 
               const SizedBox(height: 40),
               const Divider(thickness: 1),
@@ -296,5 +372,15 @@ class _SettingsScreenState extends State<SettingsScreen>
         color: color ?? theme.colorScheme.primary,
       ),
     );
+  }
+
+  String _formatDurationSettings(Duration duration) { // Aparte formatter voor hier
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+    if (hours > 0) return "${hours}u ${twoDigits(minutes)}m";
+    if (minutes > 0) return "${twoDigits(minutes)}m ${twoDigits(seconds)}s";
+    return "${twoDigits(seconds)}s";
   }
 }

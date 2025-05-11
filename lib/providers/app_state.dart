@@ -14,15 +14,20 @@ import '../models/session_data.dart';
 import '../models/rank.dart';
 import '../models/session_result.dart';
 import '../models/achievement.dart';
+import '../models/challenge.dart';
 import '../services/storage_service.dart';
 import '../services/rank_service.dart';
 import '../services/achievement_service.dart';
+import '../services/challenge_service.dart';
 
 class AppState extends ChangeNotifier with WidgetsBindingObserver
 {
   final StorageService _storageService = StorageService();
   final AchievementService _achievementService = AchievementService();
+  final ChallengeService _challengeService = ChallengeService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  static const int _currentDataVersion = 1;
 
   List<Achievement> _allAchievements = [];
   List<AchievementId> _unlockedAchievementIds = [];
@@ -40,6 +45,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   Timer? _timer;
   List<SessionData> _sessionsHistory = [];
 
+  Challenge? _currentDailyChallenge;
+  List<String> _completedDailyChallengeIdsForToday = [];
+  double _currentChallengeProgress = 0.0;
+
   final List<String> _toiletTrivia = [
     "De gemiddelde persoon brengt ongeveer 3 maanden van zijn leven door op het toilet.",
     "Koning George II van Groot-Brittannië stierf op het toilet in 1760.",
@@ -47,7 +56,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     "Er zijn meer mobiele telefoons dan toiletten in India.",
     "De duurste wc-rol ter wereld is gemaakt van 24-karaats goud.",
     "In Zuid-Korea is er een themapark gewijd aan toiletten.",
-    "Romeinen gebruikten een gedeelde spons op een stok als toiletpapier."
+    "Romeinen gebruikten een gedeelde spons op een stok als toiletpapier.",
+    "De uitvinder van het moderne spoeltoilet was Sir John Harington in 1596.",
+    "Gemiddeld gebruikt een persoon 57 velletjes toiletpapier per dag.",
+    "Het Witte Huis heeft 35 badkamers.",
+    "Angst voor openbare toiletten heet parcopresis.",
+    "De eerste gescheiden toiletten voor mannen en vrouwen verschenen in Parijs in 1739."
   ];
   String _currentTrivia = "";
 
@@ -66,17 +80,42 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   String? get currentUserId => _currentUserId;
   String get currentToiletTrivia => _currentTrivia;
   String get userStatus => _userStatus;
+  Challenge? get currentDailyChallenge => _currentDailyChallenge;
+  double get currentChallengeProgress => _currentChallengeProgress;
 
 
   AppState()
   {
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await _checkAndMigrateData();
     _initializeAchievements();
-    _loadInitialData().then((_) {
-      _initializeUser();
-    });
+    await _loadInitialData();
+    await _initializeUser();
+    await _loadOrAssignDailyChallenge();
     _selectRandomTrivia();
     WidgetsBinding.instance.addObserver(this);
+    notifyListeners();
   }
+
+
+  Future<void> _checkAndMigrateData() async {
+    final prefs = await SharedPreferences.getInstance();
+    int storedVersion = prefs.getInt('dataVersion') ?? 0;
+
+    if (storedVersion < _currentDataVersion) {
+      debugPrint("Data migratie nodig: van v$storedVersion naar v$_currentDataVersion");
+
+      if (storedVersion < 1) {
+      }
+
+      await prefs.setInt('dataVersion', _currentDataVersion);
+      debugPrint("Data migratie voltooid. Nieuwe dataVersion: $_currentDataVersion");
+    }
+  }
+
 
   void _selectRandomTrivia() {
     if (_toiletTrivia.isNotEmpty) {
@@ -100,7 +139,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     _hourlyWage = await _storageService.getHourlyWage() ?? 0.0;
     _sessionsHistory = await _storageService.getSessions();
     List<String> storedIds = await _storageService.getUnlockedAchievementIds();
-    _unlockedAchievementIds = storedIds.map((idStr) => AchievementId.values.firstWhere((e) => e.toString() == idStr, orElse: () => AchievementId.firstFlush )).toList(); // Added orElse for safety
+    _unlockedAchievementIds = storedIds.map((idStr) => AchievementId.values.firstWhere((e) => e.toString() == idStr, orElse: () => AchievementId.firstFlush )).toList();
     _updateAchievementsStatus();
     _checkForNewAchievements(isInitialLoad: true);
   }
@@ -114,8 +153,103 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     }
     _userName = prefs.getString('userName') ?? "Anonieme Held";
     _userStatus = prefs.getString('userStatus') ?? "";
+  }
+
+  Future<void> _loadOrAssignDailyChallenge() async {
+    final todayString = DateTime.now().toIso8601String().substring(0, 10);
+    String? lastChallengeDateString = await _storageService.getLastChallengeDateString();
+
+    if (lastChallengeDateString != todayString) {
+      _completedDailyChallengeIdsForToday = [];
+      await _storageService.saveCompletedDailyChallengeIds([]);
+      _currentDailyChallenge = _challengeService.selectDailyChallenge(DateTime.now(), _completedDailyChallengeIdsForToday);
+      await _storageService.saveCurrentDailyChallenge(_currentDailyChallenge);
+      await _storageService.saveLastChallengeDate(DateTime.now());
+    } else {
+      _currentDailyChallenge = await _storageService.getCurrentDailyChallenge();
+      _completedDailyChallengeIdsForToday = await _storageService.getCompletedDailyChallengeIds();
+      if (_currentDailyChallenge == null && _challengeService.getChallengeTemplates(DateTime.now()).where((c) => !_completedDailyChallengeIdsForToday.contains(c.id)).isNotEmpty) {
+        _currentDailyChallenge = _challengeService.selectDailyChallenge(DateTime.now(), _completedDailyChallengeIdsForToday);
+        await _storageService.saveCurrentDailyChallenge(_currentDailyChallenge);
+      }
+    }
+    _updateChallengeProgress();
     notifyListeners();
   }
+
+  void _updateChallengeProgress() {
+    if (_currentDailyChallenge == null || _currentDailyChallenge!.isCompleted) {
+      _currentChallengeProgress = _currentDailyChallenge?.isCompleted == true ? 1.0 : 0.0;
+      return;
+    }
+
+    DateTime today = DateTime.now();
+    DateTime todayStart = DateTime(today.year, today.month, today.day);
+    List<SessionData> todaySessions = _sessionsHistory.where((s) => s.startTime.isAfter(todayStart) || s.startTime.isAtSameMomentAs(todayStart)).toList();
+
+    double progressValue = 0;
+
+    switch (_currentDailyChallenge!.type) {
+      case ChallengeType.earnAmountToday:
+        double earnedToday = todaySessions.fold(0.0, (prev, s) => prev + s.earnedAmount);
+        progressValue = earnedToday / _currentDailyChallenge!.targetValue;
+        break;
+      case ChallengeType.completeSessionsToday:
+        progressValue = todaySessions.length / _currentDailyChallenge!.targetValue;
+        break;
+      case ChallengeType.earnInOneSession:
+        double maxEarnedInOneSessionToday = 0;
+        if (todaySessions.isNotEmpty) {
+            maxEarnedInOneSessionToday = todaySessions.map((s)=>s.earnedAmount).reduce(max);
+        }
+        progressValue = maxEarnedInOneSessionToday / _currentDailyChallenge!.targetValue;
+        break;
+      case ChallengeType.specificDurationSession:
+        bool achieved = todaySessions.any((s) => s.duration.inSeconds == _currentDailyChallenge!.targetValue.toInt());
+        progressValue = achieved ? 1.0 : 0.0;
+        break;
+      case ChallengeType.unlockAchievementToday:
+        progressValue = 0.0;
+        break;
+    }
+    _currentChallengeProgress = progressValue.clamp(0.0, 1.0);
+  }
+
+  Future<void> _checkChallengeCompletion(SessionData? lastSession) async {
+    if (_currentDailyChallenge == null || _currentDailyChallenge!.isCompleted) return;
+
+    _updateChallengeProgress();
+
+    bool challengeNowCompleted = false;
+    if (_currentChallengeProgress >= 1.0) {
+        if (_currentDailyChallenge!.type == ChallengeType.earnAmountToday ||
+            _currentDailyChallenge!.type == ChallengeType.completeSessionsToday ||
+            _currentDailyChallenge!.type == ChallengeType.earnInOneSession) {
+            challengeNowCompleted = true;
+        }
+    }
+    if (_currentDailyChallenge!.type == ChallengeType.specificDurationSession && lastSession != null) {
+        if (lastSession.duration.inSeconds == _currentDailyChallenge!.targetValue.toInt()) {
+            challengeNowCompleted = true;
+        }
+    }
+
+    if (challengeNowCompleted) {
+      _currentDailyChallenge!.isCompleted = true;
+      HapticFeedback.heavyImpact();
+      _completedDailyChallengeIdsForToday.add(_currentDailyChallenge!.id);
+      await _storageService.saveCurrentDailyChallenge(_currentDailyChallenge);
+      await _storageService.saveCompletedDailyChallengeIds(_completedDailyChallengeIdsForToday);
+
+      Challenge? nextChallenge = _challengeService.selectDailyChallenge(DateTime.now(), _completedDailyChallengeIdsForToday);
+      _currentDailyChallenge = nextChallenge;
+      await _storageService.saveCurrentDailyChallenge(_currentDailyChallenge);
+
+      _updateChallengeProgress();
+      notifyListeners();
+    }
+  }
+
 
   Future<void> setUserName(String name) async {
     _userName = name.trim().isEmpty ? "Anonieme Held" : name.trim();
@@ -146,7 +280,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     List<AchievementId> newlyUnlockedIds = _achievementService.checkAchievements(this, _unlockedAchievementIds);
     if (newlyUnlockedIds.isNotEmpty) {
       for (var id in newlyUnlockedIds) {
-        if (!_unlockedAchievementIds.contains(id)) { // Voorkom dubbel toevoegen
+        if (!_unlockedAchievementIds.contains(id)) {
             _unlockedAchievementIds.add(id);
             Achievement? unlockedAch = _allAchievements.firstWhere((ach) => ach.id == id, orElse: () => _achievementService.getAllAchievements().firstWhere((a) => a.id == id));
             unlockedAch.isUnlocked = true;
@@ -166,7 +300,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   double get totalSessionEarnings
   {
     if (_sessionsHistory.isEmpty) return 0.0;
-    return _sessionsHistory.fold(0.0, (total, session) => total + session.earnedAmount);
+    return _sessionsHistory.fold(0.0, (currentTotal, session) => currentTotal + session.earnedAmount);
   }
 
   Rank get currentRank
@@ -206,6 +340,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   void didChangeAppLifecycleState(AppLifecycleState state)
   {
     super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _loadOrAssignDailyChallenge();
+    }
     _handleLifecycleState(state);
   }
 
@@ -362,6 +499,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
         earningsInSession: finalEarningsInSession,
       );
       await _checkForNewAchievements();
+      await _checkChallengeCompletion(completedSessionData);
       await _updateLeaderboardEntry();
     }
     _sessionStartTime = null;
@@ -375,7 +513,25 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     DateTime startOfWeek = DateTime(now.year, now.month, now.day - (now.weekday - 1));
     return _sessionsHistory
         .where((session) => session.startTime.isAfter(startOfWeek) || session.startTime.isAtSameMomentAs(startOfWeek))
-        .fold(0.0, (total, session) => total + session.earnedAmount);
+        .fold(0.0, (currentTotal, session) => currentTotal + session.earnedAmount);
+  }
+
+  Future<void> deleteSession(SessionData sessionToDelete) async {
+    _sessionsHistory.removeWhere((session) =>
+        session.startTime == sessionToDelete.startTime &&
+        session.endTime == sessionToDelete.endTime &&
+        session.earnedAmount == sessionToDelete.earnedAmount
+    );
+    await _storageService.saveSessions(_sessionsHistory);
+    _unlockedAchievementIds.clear();
+    for (var ach in _allAchievements) {
+        ach.isUnlocked = false;
+        ach.unlockedTimestamp = null;
+    }
+    await _checkForNewAchievements(isInitialLoad: true);
+    await _updateLeaderboardEntry();
+    await _loadOrAssignDailyChallenge();
+    notifyListeners();
   }
 
   Future<void> resetAllData() async
@@ -398,9 +554,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userName');
     await prefs.remove('userStatus');
+    await prefs.remove('dataVersion');
     _userName = "Anonieme Held";
     _userStatus = "";
     await _updateLeaderboardEntry(isReset: true);
+    await _loadOrAssignDailyChallenge();
+
 
     notifyListeners();
   }
@@ -415,7 +574,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
 
   Duration get averageSessionDuration {
     if (_sessionsHistory.isEmpty) return Duration.zero;
-    int totalSeconds = _sessionsHistory.fold(0, (total, s) => total + s.duration.inSeconds);
+    int totalSeconds = _sessionsHistory.fold(0, (currentTotal, s) => currentTotal + s.duration.inSeconds);
     return Duration(seconds: (totalSeconds / _sessionsHistory.length).round());
   }
 
@@ -439,7 +598,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   String get mostProductiveDayOfWeek {
     if (_sessionsHistory.isEmpty) return "N.v.t.";
     var groupedByDay = groupBy(_sessionsHistory, (SessionData s) => s.startTime.weekday);
-    var summedByDay = groupedByDay.map((day, sessions) => MapEntry(day, sessions.fold(0.0, (total, s) => total + s.earnedAmount)));
+    var summedByDay = groupedByDay.map((day, sessions) => MapEntry(day, sessions.fold(0.0, (currentTotal, s) => currentTotal + s.earnedAmount)));
     if (summedByDay.isEmpty) return "N.v.t.";
     var mostProductive = summedByDay.entries.reduce((curr, next) => curr.value > next.value ? curr : next);
     List<String> days = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
@@ -449,7 +608,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   String get mostProductiveHourOfDay {
     if (_sessionsHistory.isEmpty) return "N.v.t.";
     var groupedByHour = groupBy(_sessionsHistory, (SessionData s) => s.startTime.hour);
-    var summedByHour = groupedByHour.map((hour, sessions) => MapEntry(hour, sessions.fold(0.0, (total, s) => total + s.earnedAmount)));
+    var summedByHour = groupedByHour.map((hour, sessions) => MapEntry(hour, sessions.fold(0.0, (currentTotal, s) => currentTotal + s.earnedAmount)));
     if (summedByHour.isEmpty) return "N.v.t.";
     var mostProductive = summedByHour.entries.reduce((curr, next) => curr.value > next.value ? curr : next);
     return "${mostProductive.key.toString().padLeft(2, '0')}:00 - ${ (mostProductive.key + 1).toString().padLeft(2, '0')}:00";

@@ -76,10 +76,10 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
 
     Color popupBackgroundColor = achievement.iconColor.computeLuminance() > 0.5
         ? achievement.iconColor.withBlue(max(0, achievement.iconColor.blue - 50)).withGreen(max(0, achievement.iconColor.green - 50)).withRed(max(0, achievement.iconColor.red - 50))
-        : Color.alphaBlend(achievement.iconColor.withOpacity(0.4), theme.colorScheme.surface); // Iets meer kleur van prestatie
+        : Color.alphaBlend(achievement.iconColor.withAlpha((0.4 * 255).round()), theme.colorScheme.surface);
 
-    if (popupBackgroundColor.computeLuminance() > 0.65) { // Drempel iets hoger
-        popupBackgroundColor = HSLColor.fromColor(popupBackgroundColor).withLightness(0.25).toColor(); // Donkerder maken
+    if (popupBackgroundColor.computeLuminance() > 0.65) {
+        popupBackgroundColor = HSLColor.fromColor(popupBackgroundColor).withLightness(0.25).toColor();
     }
     if (ThemeData.estimateBrightnessForColor(popupBackgroundColor) == Brightness.light) {
         popupBackgroundColor = theme.colorScheme.surface;
@@ -150,7 +150,9 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                 numberOfParticles: 20,
                 gravity: 0.05,
                 shouldLoop: false,
-                colors: const [Colors.yellow, Colors.white, Colors.amber],
+                colors: const [
+                    Colors.yellow, Colors.white, Colors.amber
+                ],
               ),
             ),
           ],
@@ -372,7 +374,9 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                 numberOfParticles: 30,
                 gravity: 0.3,
                 emissionFrequency: 0.05,
-                colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
+                colors: const [
+                  Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple
+                ],
               ),
             ),
           ],
@@ -381,16 +385,36 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
     );
   }
 
-  void _cancelSession(BuildContext context, AppState appState) {
-    appState.cancelCurrentSession();
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Sessie geannuleerd.'),
-        backgroundColor: Theme.of(context).colorScheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(10),
+  void _confirmAndCancelSession(BuildContext context, AppState appState) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sessie Annuleren?'),
+        content: const Text('Weet je zeker dat je de huidige sessie wilt annuleren? Je verdiensten voor deze sessie gaan verloren.'),
+        actions: [
+          TextButton(
+            child: const Text('Nee, doorgaan'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('Ja, Annuleren'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              appState.cancelCurrentSession();
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Sessie geannuleerd.'),
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  margin: const EdgeInsets.all(10),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -405,63 +429,14 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvoked: (bool didPop) {
         if (didPop) return;
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Sessie Afbreken?'),
-            content: const Text('Weet je zeker dat je de huidige sessie wilt afbreken? Je verdiensten voor deze sessie gaan verloren.'),
-            actions: [
-              TextButton(
-                child: const Text('Nee, doorgaan'),
-                onPressed: () => Navigator.of(ctx).pop(false),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-                child: const Text('Ja, afbreken'),
-                onPressed: () {
-                  Navigator.of(ctx).pop(true);
-                  _cancelSession(context, appState);
-                },
-              ),
-            ],
-          ),
-        );
+        _confirmAndCancelSession(context, appState);
       },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Sessie Actief'),
           automaticallyImplyLeading: false,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: 'Sessie Annuleren',
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Sessie Annuleren?'),
-                    content: const Text('Weet je zeker dat je de huidige sessie wilt annuleren? Je verdiensten voor deze sessie gaan verloren.'),
-                    actions: [
-                      TextButton(
-                        child: const Text('Nee'),
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-                        child: const Text('Ja, Annuleren'),
-                        onPressed: () {
-                          Navigator.of(ctx).pop(true);
-                          _cancelSession(context, appState);
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              },
-            )
-          ],
         ),
         body: Center(
           child: Padding(
@@ -501,12 +476,12 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                         ),
                       ),
                     ),
-                    const SizedBox(height: 60),
+                    const SizedBox(height: 40),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.stop_circle_outlined, size: 28),
                       label: const Text('Stop Sessie'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent[700],
+                        backgroundColor: Colors.redAccent[700], // Terug naar rood
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 18),
                         textStyle: theme.textTheme.titleLarge?.copyWith(
@@ -536,6 +511,22 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                         {
                           Navigator.of(context).pop();
                         }
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    OutlinedButton.icon(
+                      icon: Icon(Icons.cancel_outlined, color: theme.textTheme.bodySmall?.color?.withAlpha(180)), 
+                      label: Text(
+                        'Sessie Annuleren',
+                        style: TextStyle(color: theme.textTheme.bodySmall?.color?.withAlpha(200)), 
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: theme.dividerColor.withAlpha(100)), 
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        textStyle: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
+                      ),
+                      onPressed: () {
+                        _confirmAndCancelSession(context, appState);
                       },
                     ),
                   ],

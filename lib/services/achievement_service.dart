@@ -55,8 +55,8 @@ class AchievementService {
         id: AchievementId.sanitarySenseiAchieved,
         name: 'Sanitair Sensei Status',
         description: 'Bereik de rang van Sanitair Sensei.',
-        icon: RankService.ranks.firstWhere((r) => r.name == 'Sanitair Sensei').emoji == '🧘‍♂️' ? Icons.spa_outlined : Icons.star_border_purple500_outlined, // Conditioneel icoon
-        iconColor: RankService.ranks.firstWhere((r) => r.name == 'Sanitair Sensei').color,
+        icon: RankService.ranks.firstWhere((r) => r.name == 'Sanitair Sensei', orElse: () => RankService.ranks.last).emoji == '🧘‍♂️' ? Icons.spa_outlined : Icons.star_border_purple500_outlined,
+        iconColor: RankService.ranks.firstWhere((r) => r.name == 'Sanitair Sensei', orElse: () => RankService.ranks.last).color,
       ),
       Achievement(
         id: AchievementId.weekendWarriorWC,
@@ -82,6 +82,27 @@ class AchievementService {
         name: 'De Collectioneur',
         description: 'Ontgrendel 10 verschillende prestaties.',
         icon: Icons.collections_bookmark_outlined,
+      ),
+      Achievement(
+        id: AchievementId.centurion,
+        name: 'Centurion',
+        description: 'Voltooi 100 WC-sessies.',
+        icon: Icons.military_tech_outlined,
+        iconColor: Colors.blueGrey,
+      ),
+      Achievement(
+        id: AchievementId.marathonMan,
+        name: 'Marathon Man (of Vrouw)',
+        description: 'Besteed cumulatief meer dan 3 uur op het toilet.',
+        icon: Icons.timer_outlined,
+        iconColor: Colors.deepOrange,
+      ),
+      Achievement(
+        id: AchievementId.highRoller,
+        name: 'High Roller',
+        description: 'Verdien in totaal meer dan €250.',
+        icon: Icons.attach_money_outlined,
+        iconColor: Colors.greenAccent,
       ),
       Achievement(
         id: AchievementId.theRegular,
@@ -133,7 +154,7 @@ class AchievementService {
           conditionMet = appState.totalSessionEarnings >= 75.0;
           break;
         case AchievementId.sanitarySenseiAchieved:
-          conditionMet = appState.currentRank.name == 'Sanitair Sensei' || appState.currentRank.minEarnings >= RankService.ranks.firstWhere((r) => r.name == 'Sanitair Sensei').minEarnings;
+          conditionMet = appState.currentRank.name == 'Sanitair Sensei' || appState.currentRank.minEarnings >= RankService.ranks.firstWhere((r) => r.name == 'Sanitair Sensei', orElse: () => RankService.ranks.last).minEarnings;
           break;
         case AchievementId.weekendWarriorWC:
           int weekendSessions = appState.sessionsHistory.where((s) => s.startTime.weekday == DateTime.saturday || s.startTime.weekday == DateTime.sunday).length;
@@ -150,11 +171,21 @@ class AchievementService {
           conditionMet = appState.sessionsHistory.any((s) => s.earnedAmount >= 1.0);
           break;
         case AchievementId.theCollector:
-          conditionMet = currentlyUnlockedIds.length + newlyUnlocked.length >= 9; // 9 + deze = 10
+          conditionMet = currentlyUnlockedIds.length + newlyUnlocked.length >= 9;
+          break;
+        case AchievementId.centurion:
+          conditionMet = appState.sessionsHistory.length >= 100;
+          break;
+        case AchievementId.marathonMan:
+          int totalSecondsSpent = appState.sessionsHistory.fold(0, (prev, s) => prev + s.duration.inSeconds);
+          conditionMet = totalSecondsSpent >= (3 * 60 * 60); // 3 uur in seconden
+          break;
+        case AchievementId.highRoller:
+          conditionMet = appState.totalSessionEarnings >= 250.0;
           break;
         case AchievementId.theRegular:
         case AchievementId.theEfficient:
-          conditionMet = false; // Nog niet geïmplementeerd
+          conditionMet = false;
           break;
       }
 

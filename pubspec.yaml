@@ -1,7 +1,7 @@
 name: poepapp
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.1.0
+version: 0.1.2+2
 
 environment:
   sdk: '>=3.3.3 <4.0.0' 
@@ -17,6 +17,7 @@ dependencies:
   firebase_core: ^2.0.0 
   cloud_firestore: ^4.0.0
   uuid: ^4.0.0 
+  collection: ^1.18.0
 
 dev_dependencies:
   flutter_test:

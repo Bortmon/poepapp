@@ -11,9 +11,10 @@ import 'leaderboard_screen.dart';
 import '../utils/currency_formatter.dart';
 import '../models/session_data.dart';
 import '../models/rank.dart';
+import '../models/challenge.dart';
 import '../main.dart';
 
-class HomeScreen extends StatefulWidget { // Verander naar StatefulWidget voor Trivia animatie
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
@@ -24,7 +25,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late AnimationController _triviaAnimationController;
   late Animation<double> _triviaFadeAnimation;
   String _displayedTrivia = "";
-  Key _triviaKey = UniqueKey(); // Om de widget te forceren opnieuw te bouwen
+  Key _triviaKey = UniqueKey();
 
   @override
   void initState() {
@@ -38,7 +39,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       curve: Curves.easeInOut,
     );
 
-    // Initialiseer trivia direct
     final appState = Provider.of<AppState>(context, listen: false);
     _displayedTrivia = appState.currentToiletTrivia;
     if (_displayedTrivia.isNotEmpty) {
@@ -54,10 +54,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _refreshTriviaUI(AppState appState) {
     _triviaAnimationController.reverse().then((_) {
-      appState.refreshTrivia(); // Ververs de data in AppState
+      appState.refreshTrivia();
       setState(() {
-        _displayedTrivia = appState.currentToiletTrivia; // Update lokale state voor animatie
-        _triviaKey = UniqueKey(); // Forceer rebuild van de Text widget
+        _displayedTrivia = appState.currentToiletTrivia;
+        _triviaKey = UniqueKey();
       });
       _triviaAnimationController.forward();
     });
@@ -92,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  void _startSession(BuildContext context, AppState appState, {bool quickStart = false})
+  void _startSession(BuildContext context, AppState appState)
   {
     if (appState.hourlyWage <= 0)
     {
@@ -132,10 +132,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context)
   {
     final theme = Theme.of(context);
-    final appState = Provider.of<AppState>(context); // listen: true hier is ok voor trivia update
+    final appState = Provider.of<AppState>(context);
 
-    // Update displayedTrivia als het verandert in AppState en de animatie niet loopt
-    // Dit is voor de allereerste keer laden als de initState trivia nog leeg was.
     if (_displayedTrivia.isEmpty && appState.currentToiletTrivia.isNotEmpty && !_triviaAnimationController.isAnimating) {
         _displayedTrivia = appState.currentToiletTrivia;
         _triviaAnimationController.forward();
@@ -159,13 +157,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            _buildDailyChallengeCard(context, appState),
+            const SizedBox(height: 20),
+            _buildQuickStartCard(context, appState),
+            const SizedBox(height: 20),
+            _buildNavigationCards(context),
+            const SizedBox(height: 24),
             _buildRankCard(context, appState),
             const SizedBox(height: 24),
-            _buildQuickStartCard(context, appState),
-            const SizedBox(height: 24),
             _buildToiletTriviaCard(context, appState),
-            const SizedBox(height: 24), // Consistentere spacing
-            _buildNavigationCards(context),
 
             if (appState.hourlyWage <= 0 && !appState.isTracking && appState.sessionsHistory.isEmpty)
               Padding(
@@ -202,14 +202,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final double progress = appState.progressToNextRank;
     final double needed = appState.earningsNeededForNextRank;
 
-    Color onRankColor = theme.colorScheme.onSurface.withOpacity(0.95); // Iets minder opacity voor betere leesbaarheid
-    if (currentRank.color.computeLuminance() < 0.45) { // Drempel iets lager voor donkere kleuren
-        onRankColor = Colors.white.withOpacity(0.95);
+    Color onRankColor = theme.colorScheme.onSurface.withAlpha((0.95 * 255).round());
+    if (currentRank.color.computeLuminance() < 0.45) {
+        onRankColor = Colors.white.withAlpha((0.95 * 255).round());
     }
 
     return Card(
       elevation: 6,
-      color: currentRank.color.withAlpha(70), // Iets meer kleur in achtergrond
+      color: currentRank.color.withAlpha(70),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _navigateToAchievements(context),
@@ -221,12 +221,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             children: [
               Text(
                 currentRank.emoji,
-                style: TextStyle(fontSize: 38, color: currentRank.color), // Emoji in volle rangkleur
+                style: TextStyle(fontSize: 38, color: currentRank.color),
               ),
               const SizedBox(height: 4),
               Text(
                 currentRank.name,
-                style: theme.textTheme.headlineMedium?.copyWith( // Groter lettertype
+                style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: currentRank.color,
                 ),
@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               if (nextRank != null)
                 Text(
                   'Nog € ${needed.toStringAsFixed(2)} tot ${nextRank.name} ${nextRank.emoji}',
-                  style: theme.textTheme.bodyLarge?.copyWith( // Iets groter
+                  style: theme.textTheme.bodyLarge?.copyWith(
                     color: onRankColor,
                     fontWeight: FontWeight.w500,
                   ),
@@ -253,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               else
                 Text(
                   'Hoogste rang bereikt! Gefeliciteerd!',
-                  style: theme.textTheme.bodyLarge?.copyWith( // Iets groter
+                  style: theme.textTheme.bodyLarge?.copyWith(
                     color: currentRank.color,
                     fontWeight: FontWeight.w500,
                   ),
@@ -264,12 +264,119 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 '(Tik voor prestaties & rang details)',
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontStyle: FontStyle.italic,
-                  color: onRankColor.withOpacity(0.75),
+                  color: onRankColor.withAlpha((0.75 * 255).round()),
                 ),
                 textAlign: TextAlign.center,
               )
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyChallengeCard(BuildContext context, AppState appState) {
+    final theme = Theme.of(context);
+    final Challenge? challenge = appState.currentDailyChallenge;
+
+    IconData challengeIcon = Icons.flag_rounded;
+    if (challenge != null && challenge.isCompleted) {
+      challengeIcon = Icons.check_circle_rounded;
+    } else if (challenge == null) {
+      challengeIcon = Icons.celebration_rounded;
+    }
+
+
+    if (challenge == null) {
+      return Card(
+        elevation: 3,
+        color: theme.colorScheme.surface.withAlpha(180),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Icon(challengeIcon, color: theme.colorScheme.primary, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  "Alle uitdagingen voor vandaag voltooid of geen beschikbaar. Kom morgen terug!",
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 4,
+      color: challenge.isCompleted ? Colors.green.withAlpha(50) : theme.colorScheme.primary.withAlpha(40),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  challengeIcon,
+                  color: challenge.isCompleted ? Colors.green : theme.colorScheme.primary,
+                  size: 28,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  challenge.isCompleted ? "Uitdaging Voltooid!" : "Dagelijkse Uitdaging:",
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: challenge.isCompleted ? Colors.green : theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              challenge.title,
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              challenge.description,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.textTheme.bodyMedium?.color?.withAlpha(200)
+              ),
+            ),
+            if (!challenge.isCompleted && challenge.type != ChallengeType.specificDurationSession && challenge.type != ChallengeType.unlockAchievementToday) ...[
+              const SizedBox(height: 12),
+              LinearProgressIndicator(
+                value: appState.currentChallengeProgress,
+                backgroundColor: theme.colorScheme.surface.withAlpha(180),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  challenge.isCompleted ? Colors.green : theme.colorScheme.primary,
+                ),
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '${(appState.currentChallengeProgress * 100).toStringAsFixed(0)}%',
+                  style: theme.textTheme.bodySmall,
+                ),
+              )
+            ],
+            if (challenge.isCompleted)
+              Padding(
+                padding: const EdgeInsets.only(top: 10.0),
+                child: Center(
+                  child: Text(
+                    "Goed gedaan! 🎉",
+                    style: theme.textTheme.titleMedium?.copyWith(color: Colors.green[600], fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -284,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: Column(
           children: [
             Icon(
-              Icons.rocket_launch_outlined,
+              Icons.rocket_launch_rounded,
               size: 48,
               color: theme.colorScheme.primary,
             ),
@@ -306,17 +413,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
                 )
               ),
-              onPressed: () => _startSession(context, appState, quickStart: true),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton( // Veranderd naar OutlinedButton
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: theme.colorScheme.primary.withAlpha(150)),
-                foregroundColor: theme.colorScheme.primary,
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-              ),
-              child: const Text('Sessie aanpassen / Uurloon checken'),
-              onPressed: () => _startSession(context, appState, quickStart: false),
+              onPressed: () => _startSession(context, appState),
             ),
           ],
         ),
@@ -343,15 +440,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded, size: 20),
-                  onPressed: () => _refreshTriviaUI(appState), // Gebruik de nieuwe methode
+                  onPressed: () => _refreshTriviaUI(appState),
                   tooltip: 'Nieuwe trivia',
                   visualDensity: VisualDensity.compact,
                 )
               ],
             ),
             const SizedBox(height: 8),
-            FadeTransition( // Animatie voor de tekst
-              key: _triviaKey, // Key om rebuild te forceren
+            FadeTransition(
+              key: _triviaKey,
               opacity: _triviaFadeAnimation,
               child: Text(
                 _displayedTrivia.isNotEmpty ? _displayedTrivia : "Even geduld voor een wijs weetje...",
@@ -375,7 +472,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: InkWell(
             onTap: onTap,
-            child: Container( // Container voor gradient
+            child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 gradient: LinearGradient(
@@ -388,13 +485,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 )
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 8.0), // Meer verticale padding
+                padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 8.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(icon, color: theme.colorScheme.primary, size: 36), // Iets groter icoon
+                    Icon(icon, color: theme.colorScheme.primary, size: 36),
                     const SizedBox(height: 10),
-                    Text(title, style: theme.textTheme.bodyLarge, textAlign: TextAlign.center), // Iets grotere tekst
+                    Text(title, style: theme.textTheme.bodyLarge, textAlign: TextAlign.center),
                   ],
                 ),
               ),
@@ -405,11 +502,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 16.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         children: [
           navItem('Statistieken', Icons.insights_rounded, () => _navigateToStatistics(context)),
-          const SizedBox(width: 16), // Iets meer ruimte
+          const SizedBox(width: 16),
           navItem('Leaderboard', Icons.leaderboard_rounded, () => _navigateToLeaderboard(context)),
         ],
       ),
