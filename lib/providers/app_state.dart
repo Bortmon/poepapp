@@ -34,7 +34,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   final List<Achievement> _newlyUnlockedAchievementsBuffer = [];
   final List<Challenge> _newlyCompletedChallengesBuffer = [];
 
-
   String? _currentUserId;
   String _userName = "Anonieme Held";
   String _userStatus = "";
@@ -52,6 +51,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   double _currentChallengeProgress = 0.0;
   int _dailyChallengeStreak = 0;
   bool _anyChallengeEverCompleted = false;
+
+  bool _isInitialized = false;
+  Completer<void> _initCompleter = Completer<void>();
 
 
   final List<String> _toiletTrivia = [
@@ -94,6 +96,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   double get currentChallengeProgress => _currentChallengeProgress;
   int get dailyChallengeStreak => _dailyChallengeStreak;
   bool get anyChallengeEverCompleted => _anyChallengeEverCompleted;
+  bool get isInitialized => _isInitialized;
+  Future<void> get initializationComplete => _initCompleter.future;
 
 
   AppState()
@@ -102,6 +106,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   }
 
   Future<void> _initialize() async {
+    if (_initCompleter.isCompleted) {
+      _initCompleter = Completer<void>();
+    }
+    
     await _checkAndMigrateData();
     _initializeAchievements();
     await _loadInitialData();
@@ -109,6 +117,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
     await _loadOrAssignDailyChallenge();
     _selectRandomTrivia();
     WidgetsBinding.instance.addObserver(this);
+    
+    _isInitialized = true;
+    if (!_initCompleter.isCompleted) {
+      _initCompleter.complete();
+    }
     notifyListeners();
   }
 
@@ -221,7 +234,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
       }
     }
     _updateChallengeProgress();
-    notifyListeners();
   }
 
   void _updateChallengeProgress() {

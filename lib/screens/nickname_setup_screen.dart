@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
-import 'home_screen.dart';
+import 'main_navigation_screen.dart'; 
+import '../main.dart'; 
 
 class NicknameSetupScreen extends StatefulWidget {
   const NicknameSetupScreen({super.key});
@@ -24,9 +25,15 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
       final appState = Provider.of<AppState>(context, listen: false);
       await appState.setUserName(_nicknameController.text.trim());
 
-      if (mounted) {
+
+      if (navigatorKey.currentState != null && mounted) {
+        navigatorKey.currentState!.pushReplacement(
+          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        );
+      } else if (mounted) {
+        
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
         );
       }
     }
