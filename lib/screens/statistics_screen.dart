@@ -26,16 +26,15 @@ class StatisticsScreen extends StatelessWidget {
   Widget _buildStatItem(BuildContext context, String label, String value, {IconData? icon, Color? iconColor}) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      padding: const EdgeInsets.symmetric(vertical: 12.0), // Meer verticale padding
       child: Row(
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 24, color: iconColor ?? theme.colorScheme.primary),
-            const SizedBox(width: 12),
+            Icon(icon, size: 26, color: iconColor ?? theme.colorScheme.primary.withAlpha(200)), // Iets subtieler icoon
+            const SizedBox(width: 16), // Meer ruimte
           ],
-          Expanded(
-            child: Text(label, style: theme.textTheme.titleMedium),
-          ),
+          Text(label, style: theme.textTheme.bodyLarge?.copyWith(color: theme.textTheme.bodyLarge?.color?.withAlpha(200))), // Label iets subtieler
+          const Spacer(), // Duwt waarde naar rechts
           Text(
             value,
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: iconColor ?? theme.colorScheme.primary),
@@ -56,8 +55,9 @@ class StatisticsScreen extends StatelessWidget {
         ),
         Card(
           elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
           child: Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(16.0), // Meer padding rond grafiek
             child: chartWidget,
           )
         ),
@@ -300,23 +300,26 @@ class StatisticsScreen extends StatelessWidget {
       ),
       body: appState.sessionsHistory.isEmpty
           ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.bar_chart_outlined, size: 80, color: theme.iconTheme.color?.withAlpha(100)),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nog geen data voor statistieken.',
-                    style: theme.textTheme.headlineSmall?.copyWith(color: theme.textTheme.headlineSmall?.color?.withAlpha(150)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Voltooi wat sessies om hier leuke feitjes te zien!',
-                    style: theme.textTheme.bodyLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.query_stats_rounded, size: 80, color: theme.iconTheme.color?.withAlpha(100)),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Statistieken nog leeg',
+                      style: theme.textTheme.headlineSmall?.copyWith(color: theme.textTheme.headlineSmall?.color?.withAlpha(180)),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Voltooi wat sessies om je indrukwekkende data hier te zien!',
+                      style: theme.textTheme.bodyLarge?.copyWith(color: theme.textTheme.bodyLarge?.color?.withAlpha(200)),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             )
           : SingleChildScrollView(
@@ -327,6 +330,7 @@ class StatisticsScreen extends StatelessWidget {
                   Text('Algemene Statistieken', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(

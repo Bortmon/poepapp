@@ -139,11 +139,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             _buildDailyChallengeCard(context, appState),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildQuickStartCard(context, appState),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildRankCard(context, appState),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildToiletTriviaCard(context, appState),
 
             if (appState.hourlyWage <= 0 && !appState.isTracking && appState.sessionsHistory.isEmpty)
@@ -182,14 +182,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final double progress = appState.progressToNextRank;
     final double needed = appState.earningsNeededForNextRank;
 
-    Color onRankColor = Colors.white.withOpacity(0.9); 
+    Color onRankColor = Colors.white.withOpacity(0.95);
+    if (currentRank.color.computeLuminance() < 0.45 && currentRank.color != Colors.transparent) {
+        onRankColor = Colors.white.withOpacity(0.95);
+    } else if (currentRank.color.computeLuminance() > 0.6) {
+        onRankColor = theme.colorScheme.surface.withOpacity(0.95);
+    }
+
 
     return Card(
-      elevation: 4,
+      elevation: 6,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _navigateToAchievements(context),
+        borderRadius: BorderRadius.circular(12.0),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -204,26 +211,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           padding: const EdgeInsets.all(20.0),
           child: Column(
             children: [
-              Text(
-                currentRank.emoji,
-                style: const TextStyle(fontSize: 40, color: Colors.white),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                currentRank.name,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white, 
-                ),
-                textAlign: TextAlign.center,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(width: 24), 
+                  Column(
+                    children: [
+                       Text(
+                        currentRank.emoji,
+                        style: TextStyle(fontSize: 36, color: onRankColor),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        currentRank.name,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: onRankColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                  Icon(Icons.info_outline_rounded, size: 20, color: onRankColor.withOpacity(0.7)),
+                ],
               ),
               const SizedBox(height: 18),
-              ClipRRect( 
+              ClipRRect(
                 borderRadius: BorderRadius.circular(7),
                 child: LinearProgressIndicator(
                   value: progress,
                   backgroundColor: Colors.white.withAlpha(50),
-                  valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary), 
+                  valueColor: AlwaysStoppedAnimation<Color>(onRankColor.withOpacity(0.8)),
                   minHeight: 14,
                 ),
               ),
@@ -246,15 +265,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                   textAlign: TextAlign.center,
                 ),
-              const SizedBox(height: 8),
-              Text(
-                '(Tik voor prestaties & rang details)',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  color: onRankColor.withOpacity(0.8),
-                ),
-                textAlign: TextAlign.center,
-              )
             ],
           ),
         ),
@@ -281,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     return Card(
       elevation: 3,
-      color: theme.colorScheme.surface, 
+      color: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -314,23 +324,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
               if (!challenge.isCompleted && challenge.type != ChallengeType.specificDurationSession && challenge.type != ChallengeType.unlockAchievementToday) ...[
                 const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: appState.currentChallengeProgress,
-                    backgroundColor: theme.colorScheme.onSurface.withAlpha(50),
-                    valueColor: AlwaysStoppedAnimation<Color>(challengeColor),
-                    minHeight: 8,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: appState.currentChallengeProgress,
+                          backgroundColor: theme.colorScheme.onSurface.withAlpha(50),
+                          valueColor: AlwaysStoppedAnimation<Color>(challengeColor),
+                          minHeight: 10, // Iets dikker
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${(appState.currentChallengeProgress * 100).toStringAsFixed(0)}%',
+                      style: theme.textTheme.bodySmall?.copyWith(color: challengeColor, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    '${(appState.currentChallengeProgress * 100).toStringAsFixed(0)}%',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(180)),
-                  ),
-                )
               ],
               if (challenge.isCompleted)
                 Padding(
@@ -360,12 +373,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Padding(
-        padding: const EdgeInsets.all(24.0), 
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
             Icon(
               Icons.rocket_launch_rounded,
-              size: 52, 
+              size: 52,
               color: theme.colorScheme.primary,
             ),
             const SizedBox(height: 16),
@@ -380,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               label: const Text('Snel Starten'),
               style: theme.elevatedButtonTheme.style?.copyWith(
                 padding: WidgetStateProperty.all(
-                  const EdgeInsets.symmetric(vertical: 18, horizontal: 36), 
+                  const EdgeInsets.symmetric(vertical: 18, horizontal: 36),
                 ),
                 textStyle: WidgetStateProperty.all(
                   theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onPrimary)
@@ -398,7 +411,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final theme = Theme.of(context);
     return Card(
       elevation: 2,
-      color: theme.colorScheme.surface, 
+      color: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),

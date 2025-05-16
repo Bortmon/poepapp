@@ -28,78 +28,108 @@ class AchievementsScreen extends StatelessWidget {
               children: [
                 Text(
                   '$unlockedCount / ${achievements.length} Prestaties Ontgrendeld',
-                  style: theme.textTheme.titleLarge,
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 if (achievements.isNotEmpty)
-                  LinearProgressIndicator(
-                    value: unlockedCount / achievements.length,
-                    backgroundColor: theme.colorScheme.surface.withAlpha(150),
-                    valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: unlockedCount / achievements.length,
+                      backgroundColor: theme.colorScheme.surface.withAlpha(150),
+                      valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                      minHeight: 10,
+                    ),
                   ),
               ],
             ),
           ),
           Expanded(
             child: achievements.isEmpty
-                ? const Center(child: Text('Nog geen prestaties gedefinieerd.'))
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.emoji_events_outlined, size: 80, color: theme.iconTheme.color?.withAlpha(100)),
+                          const SizedBox(height: 16),
+                          Text(
+                            "Begin je WC Avontuur!",
+                            style: theme.textTheme.headlineSmall?.copyWith(color: theme.textTheme.headlineSmall?.color?.withAlpha(180)),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Ontgrendel prestaties door de app te gebruiken en je verdiensten te maximaliseren.",
+                            style: theme.textTheme.bodyLarge?.copyWith(color: theme.textTheme.bodyLarge?.color?.withAlpha(200)),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
                 : GridView.builder(
-                    padding: const EdgeInsets.all(12.0),
+                    padding: const EdgeInsets.all(16.0),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      childAspectRatio: 1 / 1.2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.9,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
                     ),
                     itemCount: achievements.length,
                     itemBuilder: (context, index) {
                       final achievement = achievements[index];
+                      bool isUnlocked = achievement.isUnlocked;
+                      Color cardColor = isUnlocked ? achievement.iconColor.withAlpha(40) : theme.colorScheme.surface.withAlpha(100);
+                      Color iconColor = isUnlocked ? achievement.iconColor : theme.iconTheme.color!.withAlpha(80);
+                      Color textColor = isUnlocked ? achievement.iconColor : theme.colorScheme.onSurface;
+
                       return Card(
-                        elevation: achievement.isUnlocked ? 5 : 2,
-                        color: achievement.isUnlocked
-                            ? achievement.iconColor.withAlpha(40)
-                            : theme.colorScheme.surface.withAlpha(100),
+                        elevation: isUnlocked ? 4 : 1,
+                        color: cardColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(
-                            color: achievement.isUnlocked ? achievement.iconColor : Colors.transparent,
+                            color: isUnlocked ? achievement.iconColor.withAlpha(150) : Colors.transparent,
                             width: 1.5
                           )
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
                               Icon(
-                                achievement.isUnlocked ? achievement.icon : Icons.lock_outline_rounded,
-                                size: 48,
-                                color: achievement.isUnlocked ? achievement.iconColor : theme.iconTheme.color?.withAlpha(80),
+                                isUnlocked ? achievement.icon : Icons.lock_outline_rounded,
+                                size: 52,
+                                color: iconColor,
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                achievement.name,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: achievement.isUnlocked ? achievement.iconColor : theme.textTheme.titleMedium?.color,
-                                ),
-                                textAlign: TextAlign.center,
+                              Column(
+                                children: [
+                                  Text(
+                                    achievement.name,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    achievement.description,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: textColor.withAlpha(isUnlocked ? 200 : 150),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                achievement.description,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: achievement.isUnlocked
-                                      ? theme.textTheme.bodySmall?.color?.withAlpha(200)
-                                      : theme.textTheme.bodySmall?.color?.withAlpha(120),
-                                ),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (achievement.isUnlocked && achievement.unlockedTimestamp != null)
+                              if (isUnlocked && achievement.unlockedTimestamp != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 6.0),
                                   child: Text(
@@ -107,10 +137,12 @@ class AchievementsScreen extends StatelessWidget {
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       fontSize: 10,
                                       fontStyle: FontStyle.italic,
-                                      color: achievement.iconColor.withAlpha(180),
+                                      color: textColor.withAlpha(180),
                                     ),
                                   ),
-                                ),
+                                ) 
+                              else if (!isUnlocked)
+                                const SizedBox(height: 14)
                             ],
                           ),
                         ),
