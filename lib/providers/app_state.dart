@@ -98,6 +98,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
   bool get anyChallengeEverCompleted => _anyChallengeEverCompleted;
   bool get isInitialized => _isInitialized;
   Future<void> get initializationComplete => _initCompleter.future;
+  int get totalSessionsCount => _sessionsHistory.length;
 
 
   AppState()
@@ -516,6 +517,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver
       'lastUpdated': FieldValue.serverTimestamp(),
       'recentSessions': recentSessionsForFirestore,
       'userStatus': _userStatus,
+      'sessionsHistoryCount': _sessionsHistory.length,
     };
 
     try {

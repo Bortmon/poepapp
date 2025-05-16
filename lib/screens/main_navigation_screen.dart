@@ -5,7 +5,6 @@ import 'statistics_screen.dart';
 import 'leaderboard_screen.dart';
 import 'achievements_screen.dart';
 
-
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
@@ -31,8 +30,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      body: IndexedStack( 
+      body: IndexedStack(
         index: _selectedIndex,
         children: _screens,
       ),
@@ -60,12 +60,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Theme.of(context).colorScheme.onSurface.withAlpha(180),
+        selectedItemColor: theme.colorScheme.primary,
+        unselectedItemColor: theme.colorScheme.onSurface.withAlpha(180),
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        elevation: 8.0, 
+        backgroundColor: const Color(0xFF2C2C2C),
+        elevation: 8.0,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
+        iconSize: 26, 
       ),
     );
   }

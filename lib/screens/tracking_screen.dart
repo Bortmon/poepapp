@@ -56,20 +56,6 @@ class _TrackingScreenState extends State<TrackingScreen> with TickerProviderStat
     super.dispose();
   }
 
-  String _formatDurationForPopup(Duration duration)
-  {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-
-    List<String> parts = [];
-    if (hours > 0) parts.add("${hours}u");
-    if (minutes > 0) parts.add("${twoDigits(minutes)}m");
-    if (seconds > 0 || parts.isEmpty) parts.add("${twoDigits(seconds)}s");
-
-    return parts.join(" ");
-  }
 
   Future<void> _showAchievementUnlockedPopup(BuildContext context, Achievement achievement) async {
     final theme = Theme.of(context);
